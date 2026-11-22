@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "scan:bundle": "node scripts/scan-bundle.mjs",
+    "smoke:live": "node scripts/smoke-live.mjs",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",

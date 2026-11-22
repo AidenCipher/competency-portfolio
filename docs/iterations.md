@@ -133,16 +133,17 @@ reference data on the hosted project, Supabase advisors, and a hosted Lighthouse
 
 ## Sprint 3 (due 12 Dec): harden, deploy, present  (IN PROGRESS)
 
-**Where it stands (honest).** The code-side hardening is done and verified on the real local stack. The hosted pieces
-(Supabase project, Vercel project, Resend, Google) are **not done**: creating a billable Supabase project needs the owner's
-explicit approval, which was not yet given when this was written, so nothing was created. Vercel access is authorised but
-no project exists. See [deploy.md](deploy.md) for the runbook.
+**Where it stands (honest).** The code-side hardening is done and verified on the real local stack. The owner created the hosted
+Supabase project (`aoidydcdvwrquhslvwll`, Singapore); migrations 1-7 and the demo seed are applied, advisors are run and
+documented, and the live API posture is verified from outside with only the public key. **Not done:** the Vercel project and
+deployment, Resend, real Google sign-in, and the live end-to-end run. Vercel access is authorised but no project exists, and
+there is no git remote. See [deploy.md](deploy.md) for the runbook and `npm run smoke:live` for the post-deploy checks.
 
 | Sprint 3 acceptance | Status |
 |---|---|
 | Production URL works end to end with a fresh account | **Not done.** Needs the hosted Supabase project, a Vercel deployment and custom SMTP (see below). |
 | Headers and CSP verified on production; no secrets in the client bundle | **Partly.** Headers/CSP verified on a local production build; `npm run scan:bundle` clean (with a planted-key negative control). Not yet checked on a Vercel URL. |
-| Advisors clean or each exception documented | **Not done.** Needs the hosted project. Expected, intentional findings are listed in deploy.md. |
+| Advisors clean or each exception documented | **Pass (hosted).** Security: one finding fixed (`owns_experience` moved to a non-exposed schema, migration 7); the other 4 are intentional or Supabase-owned and each is explained in deploy.md. Performance: INFO only, explained. |
 | Rate limits return 429 under a scripted burst | **Pass (local real stack).** 60 x 200 then 429 + `Retry-After` on `/validate/*`; 20 then 429 on login POSTs; shared Postgres counter, atomic under concurrency (test). To repeat on the live URL. |
 | Revoked share link returns 404 immediately | **Not built** (Could-have, skipped; core work took priority). |
 | Lighthouse >= 90 / >= 95 on landing and dashboard | **Landing: pass** (Sprint 2: 99 to 100 / 100). **Dashboard: not yet measured**; to do on the deployed build. |
@@ -173,6 +174,10 @@ no project exists. See [deploy.md](deploy.md) for the runbook.
   gating decision for both "Resend delivery" and "production works with a fresh account". Google sign-in is the fallback.
 - A DB test that boots its own in-process Postgres timed out under parallel load; it now boots in `beforeAll`.
 
-**Needs the owner.** Approve creating the Supabase project (name `capability-portfolio`, `ap-south-1`); a sending domain for
-Resend (or accept test-only email); a private GitHub repo (and a corrected git author before the first push); a Google OAuth
-client; and the secret env vars pasted into Vercel as Sensitive.
+**Needs the owner.** A private GitHub repo (and a corrected git author before the first push) or a `npx vercel` run from the
+project folder; the Supabase secret key pasted into Vercel as Sensitive; a sending domain for Resend (or accept test-only
+email); a Google OAuth client; and the Supabase Auth URL settings once the Vercel URL is known.
+
+**Hosted verification (2026-11-22/23).** With only the public key: every table and server-only function denied to `anon`
+(`42501`); `owns_experience` not exposed (404); `demo_portfolio()` public and leak-free; no buckets listable; evidence not
+publicly readable; anonymous uploads refused. The Supabase advisor flagged `rls_auto_enable()`: Supabase's own function, left alone.
