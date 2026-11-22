@@ -141,8 +141,8 @@ there is no git remote. See [deploy.md](deploy.md) for the runbook and `npm run 
 
 | Sprint 3 acceptance | Status |
 |---|---|
-| Production URL works end to end with a fresh account | **Not done.** Needs the hosted Supabase project, a Vercel deployment and custom SMTP (see below). |
-| Headers and CSP verified on production; no secrets in the client bundle | **Partly.** Headers/CSP verified on a local production build; `npm run scan:bundle` clean (with a planted-key negative control). Not yet checked on a Vercel URL. |
+| Production URL works end to end with a fresh account | **Not yet.** Deployed and reachable at https://competency-portfolio.vercel.app (Vercel project `competency-portfolio`, functions in `sin1`), but the server-only Supabase key is not set on Vercel yet, and sign-up email needs custom SMTP or Google sign-in. |
+| Headers and CSP verified on production; no secrets in the client bundle | **Pass on the live URL for headers/CSP** (`npm run smoke:live`: CSP incl. Supabase connect-src, HSTS, nosniff, Referrer/Permissions-Policy, X-Frame-Options, no X-Powered-By). Bundle scan clean on the local build of the same commit. |
 | Advisors clean or each exception documented | **Pass (hosted).** Security: one finding fixed (`owns_experience` moved to a non-exposed schema, migration 7); the other 4 are intentional or Supabase-owned and each is explained in deploy.md. Performance: INFO only, explained. |
 | Rate limits return 429 under a scripted burst | **Pass (local real stack).** 60 x 200 then 429 + `Retry-After` on `/validate/*`; 20 then 429 on login POSTs; shared Postgres counter, atomic under concurrency (test). To repeat on the live URL. |
 | Revoked share link returns 404 immediately | **Not built** (Could-have, skipped; core work took priority). |
@@ -181,3 +181,12 @@ email); a Google OAuth client; and the Supabase Auth URL settings once the Verce
 **Hosted verification (2026-11-22/23).** With only the public key: every table and server-only function denied to `anon`
 (`42501`); `owns_experience` not exposed (404); `demo_portfolio()` public and leak-free; no buckets listable; evidence not
 publicly readable; anonymous uploads refused. The Supabase advisor flagged `rls_auto_enable()`: Supabase's own function, left alone.
+
+
+**Live deployment (first run, 2026-11-22).** `npm run smoke:live -- https://competency-portfolio.vercel.app` passed 17 of 19
+checks (all headers/CSP, `/demo`, `/privacy`, 404, login redirect, cross-site sign-out refusal, sweep route closed). The two
+failures were confirmed from the Vercel runtime logs to be the missing `SUPABASE_SERVICE_ROLE_KEY` (a ZodError at the first
+server-only call): `/validate` returned 500 and the shared limiter fell back to per-instance memory, so no 429 appeared.
+Both are expected to clear once the key is set and the app redeployed; to be re-run and reported then. Functions run in `sin1`
+(`x-vercel-id: bom1::sin1`: bom1 is only the edge that received the request). Vercel Authentication did not block the
+production alias (HTTP 200 anonymously).
