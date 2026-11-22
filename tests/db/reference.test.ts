@@ -1,13 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import type { PGlite } from "@electric-sql/pglite";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDb } from "./harness";
 
 const HRBP = "a0000000-0000-4000-8000-000000000001";
 
+let db: PGlite;
+beforeAll(async () => { db = await createDb({ seed: false }); });
+afterAll(async () => { await db.close(); });
+
 describe("reference-data migration", () => {
   it("provides the HRBP map without the demo seed, and is idempotent", async () => {
-    const db = await createDb({ seed: false });
     const file = path.resolve(__dirname, "../../supabase/migrations/20261122000003_reference_data.sql");
     await db.exec(fs.readFileSync(file, "utf8")); // second application must not fail or duplicate
 
