@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+/* Design tokens. Light is default; dark follows the OS. Prototype look:
+   white cards, one electric-blue accent, green/amber/blue status chips,
+   dark "next capability" card, mono micro-labels. */
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #f1f3f9;
+  --ink: #0b0d14;
+  --ink-2: #4a5068;
+  --ink-3: #6b7189;
+  --line: #e4e7f0;
+  --accent: #2547ff;
+  --accent-ink: #ffffff;
+  --accent-soft: #e8ecff;
+  --ok: #0f8a4f;
+  --ok-soft: #dff5e9;
+  --warn: #a15c00;
+  --warn-soft: #fdf0d5;
+  --info: #1657c9;
+  --info-soft: #e1ecff;
+  --bad: #b3261e;
+  --bad-soft: #fde4e1;
+  --dark-card: #0b0d14;
+  --dark-card-ink: #f4f5fa;
+  --ring: #2547ff;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #07080d;
+    --surface: #10131c;
+    --surface-2: #171b27;
+    --ink: #f1f2f8;
+    --ink-2: #b4b9cf;
+    --ink-3: #8f95ae;
+    --line: #232838;
+    --accent: #6f86ff;
+    --accent-ink: #07080d;
+    --accent-soft: #1b2250;
+    --ok: #4cd18a;
+    --ok-soft: #12301f;
+    --warn: #f0b34a;
+    --warn-soft: #34270d;
+    --info: #7aa7ff;
+    --info-soft: #15264b;
+    --bad: #ff8a80;
+    --bad-soft: #3a1714;
+    --dark-card: #171b27;
+    --dark-card-ink: #f4f5fa;
+    --ring: #8fa0ff;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-dark-card: var(--dark-card);
+  --color-dark-card-ink: var(--dark-card-ink);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --radius-card: 1.25rem;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.03em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@utility card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+@utility micro {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
