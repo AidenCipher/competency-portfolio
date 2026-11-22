@@ -83,3 +83,29 @@ domain Resend only delivers to your own address, which is fine for a private dem
 - Click "Continue with Google" once in a real browser. It has been verified to reach accounts.google.com under the production CSP with fake credentials, but only a real client proves the whole round trip.
 - Burst `/validate/<random>` more than 60 times from one machine: expect HTTP 429.
 - Lighthouse (mobile) on landing and dashboard, via the command in the README.
+
+
+## 6. Production checklist (status as of the last deploy)
+
+| Item | Status |
+|---|---|
+| Hosted Supabase: schema, RLS, private bucket, reference data, demo seed, advisors reviewed | Done |
+| Vercel project, env vars (service key and cron secret Sensitive), functions next to the database (`sin1`), Node 24 | Done |
+| Headers, CSP, HSTS, 429 limiter, generic validator errors, 404/500/privacy pages, robots.txt, sitemap | Done, checked by `npm run smoke:live` |
+| Email sign-in and Google sign-in both completed on the live site; accounts link by email | Done (owner-tested) |
+| Auth redirect settings (Site URL + redirect list) | Done (owner) |
+| Secret rotation after they appeared in a chat session (Supabase secret key, Google client secret) | **Owner to do**; then update Vercel and redeploy |
+| Resend email to arbitrary recipients | Not enabled: needs a verified domain; validators get the copyable link |
+| Live file upload + endorsement by a real validator on production | **Not yet exercised by anyone**: do one before relying on it |
+| Daily cleanup cron registered on Vercel (it also touches the database daily, which helps a free project avoid the idle pause, but that is not guaranteed) | Declared in `vercel.json`; confirm in the Vercel dashboard (Settings, Cron Jobs) |
+| Backups | Free Supabase plans have no point-in-time recovery. Export if the data matters. |
+
+### Migration bookkeeping (read before using the Supabase CLI against the hosted project)
+The hosted project's migrations were applied with the Supabase MCP `apply_migration` tool, which records its own timestamp
+versions (not the filenames in `supabase/migrations/`). The hosted `reference_data` migration also has trimmed comments. The
+SQL is equivalent. If you later want `supabase db push`, first align the history with `supabase migration repair`, or it may try
+to re-apply migrations. Keep using one method.
+
+### Supabase Auth settings to review in the dashboard (no API for these here)
+Authentication, then Rate Limits (email send limits); Sign In / Providers (email OTP expiry, keep "Confirm email" on);
+Attack Protection (CAPTCHA is optional and needs a provider). Anonymous sign-ins are off.

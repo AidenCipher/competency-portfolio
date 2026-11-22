@@ -10,7 +10,7 @@ Stack: Next.js 16 (App Router) · TypeScript strict · Tailwind 4 · Motion · S
 
 ## Quick start (local)
 
-Requirements: Node 22+, **Docker Desktop** (the local Supabase stack runs in containers).
+Requirements: Node 24+, **Docker Desktop** (the local Supabase stack runs in containers).
 
 ```bash
 npm install

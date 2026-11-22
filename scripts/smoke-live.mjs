@@ -28,6 +28,8 @@ check("/demo shows the fictional learner, clearly labelled", /Jo \(DEMO\)/.test(
 check("/demo leaks no emails, hashes or paths", !/validator_email|token_hash|storage_path|@example\.test/.test(demoText));
 
 check("/privacy is 200", (await get("/privacy")).status === 200);
+const robots = await (await get("/robots.txt")).text();
+check("robots.txt disallows /app/, /validate/ and /api/", /Disallow: \/app\//.test(robots) && /Disallow: \/validate\//.test(robots) && /Disallow: \/api\//.test(robots));
 check("unknown page is a real 404", (await get("/definitely-not-a-page")).status === 404);
 const app = await get("/app");
 check("/app redirects a signed-out visitor to /login", [302, 303, 307, 308].includes(app.status) && /\/login/.test(app.headers.get("location") ?? ""), `${app.status} ${app.headers.get("location") ?? ""}`);

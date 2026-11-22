@@ -239,7 +239,7 @@ credentials, native mobile app.
 ### Engineering outcomes (measured)
 | Measure | Result |
 |---|---|
-| Automated tests | 136 unit/database tests, 19 real-stack tests (real GoTrue, PostgREST, Storage), 18 browser tests (Playwright, including axe, keyboard-only and reduced-motion). All passing on the final code. |
+| Automated tests | 136 unit/database tests, 19 real-stack tests (real GoTrue, PostgREST, Storage), 19 browser tests (Playwright, including axe, keyboard-only and reduced-motion). All passing on the final code. |
 | Accessibility | axe (WCAG 2.0/2.1 A and AA): zero serious or critical violations on 14 screens/states, light and dark. Keyboard-only Add Experience works. |
 | Performance | Live landing page, mobile Lighthouse: 96, 99, 98 (performance); 100 accessibility, best-practices and SEO. Dashboard (local production build, signed in): 99, 98, 98 / 100. |
 | Security | `npm audit` 0 vulnerabilities; no secrets in the client bundle (scanner with a planted-key negative control); security headers and CSP verified on the live URL; Supabase advisors run and each remaining finding explained (docs/deploy.md); live burst test returns HTTP 429. |
@@ -303,7 +303,7 @@ HRBP, the Problem Solving target, and which email sender/domain to use.
 ```bash
 npm run typecheck && npm run lint && npm test          # 136 unit and database tests
 npm run db:start && npm run test:stack                  # 19 real-stack tests (needs Docker)
-npm run test:e2e                                        # 18 browser tests incl. axe, keyboard, reduced motion
+npm run test:e2e                                        # 19 browser tests incl. axe, keyboard, reduced motion
 npm run build && npm run scan:bundle                    # no secrets in the client bundle
 npm run smoke:live -- https://competency-portfolio.vercel.app   # 19 live checks
 ```

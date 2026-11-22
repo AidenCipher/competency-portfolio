@@ -381,3 +381,16 @@ test("auth cookies are HttpOnly and SameSite=Lax, and sign-out only accepts same
   await page.goto("/app");
   await expect(page).toHaveURL(/\/login/);
 });
+
+test("robots.txt keeps private areas out of search engines and lists only the public pages", async ({ request }) => {
+  const res = await request.get("/robots.txt");
+  expect(res.status()).toBe(200);
+  const txt = await res.text();
+  for (const p of ["/app/", "/api/", "/auth/", "/validate/", "/login", "/demo"]) expect(txt).toContain(`Disallow: ${p}`);
+  expect(txt).toContain("Allow: /privacy");
+  const map = await request.get("/sitemap.xml");
+  expect(map.status()).toBe(200);
+  const xml = await map.text();
+  expect(xml).toContain("/privacy");
+  expect(xml).not.toMatch(/\/app|\/validate|\/demo/);
+});
