@@ -59,6 +59,11 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // 3 files x 10 MB + form fields. Per-file size is enforced in lib/uploads.ts.
+    // NOTE: Vercel serverless functions cap request bodies at ~4.5 MB; see docs/iterations.md.
+    serverActions: { bodySizeLimit: "32mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {
