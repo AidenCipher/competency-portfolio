@@ -1,7 +1,10 @@
 -- =====================================================================================
 -- SEED DATA. Everything below the "DEMO" banner is invented demonstration data.
 -- "Jo" is a fictional learner. No figure here is a real result or a real person.
--- Runs on `supabase db reset` (local only; requires the reference-data migration). Never run against a real learner database.
+-- IDEMPOTENT: running this file again resets the demo learner to a clean state ("reset demo"). It only ever deletes the
+-- one fixed demo account (and only if that profile is flagged is_demo), so real learners are never touched.
+--   Local:  npm run demo:reset          Hosted: run this file in the Supabase SQL editor (or via the SQL API).
+-- Requires the reference-data migration (roles, capabilities, HRBP targets).
 -- =====================================================================================
 
 -- Reference data (roles, capabilities, HRBP targets and weights) lives in
@@ -10,6 +13,11 @@
 -- =====================================================================================
 -- DEMO: fictional learner "Jo" (sign in via magic link to jo.demo@example.test; local mail catcher on :54324)
 -- =====================================================================================
+-- Reset: removing the demo auth user cascades to its identity, profile, experiences, evidence, validations and statements.
+delete from auth.users u
+ using public.profiles p
+ where p.id = u.id and p.is_demo and u.id = 'd0000000-0000-4000-8000-000000000001';
+
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at,

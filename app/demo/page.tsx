@@ -68,7 +68,8 @@ export default async function DemoPage() {
       </main>
 
       <footer className="border-t border-line pt-4 text-xs text-ink-2">
-        This is demo data. Real portfolios are private: files are visible only to their owner, the validators they choose, and anyone they give a share link to.
+        This is demo data. Real portfolios are private: files are visible only to their owner, the validators they choose, and anyone they give a share link to.{" "}
+        <Link href="/privacy" className="underline">Privacy</Link>
       </footer>
     </div>
   );

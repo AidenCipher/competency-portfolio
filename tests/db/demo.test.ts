@@ -1,5 +1,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { addUser, as, createDb } from "./harness";
 
 const REAL = "33333333-3333-4333-8333-333333333333";
@@ -54,5 +56,21 @@ describe("demo_portfolio()", () => {
     await expect(
       as(db, "authenticated", REAL, () => db.query(`insert into experiences (user_id, title, type, role_title, duration_label, description, reflection, is_demo) values ($1,'x','work','r','d','x','y', true)`, [REAL])),
     ).rejects.toThrow(/permission denied/i);
+  });
+
+  it("re-running the seed resets the demo learner to a clean state and never touches real learners", async () => {
+    const JO = "d0000000-0000-4000-8000-000000000001";
+    // Dirty the demo: remove an experience, add a junk one.
+    await db.query(`delete from experiences where user_id = $1 and id = 'e0000000-0000-4000-8000-000000000001'`, [JO]);
+    await db.query(`insert into experiences (user_id, title, type, role_title, duration_label, description, reflection, is_demo) values ($1,'JUNK','work','r','d','x','y', true)`, [JO]);
+    const seed = fs.readFileSync(path.resolve(__dirname, "../../supabase/seed.sql"), "utf8");
+    await db.exec(seed);
+    await db.exec(seed); // and again: idempotent
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from experiences where user_id = $1`, [JO])).rows[0].n).toBe(5);
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from experiences where title = 'JUNK'`)).rows[0].n).toBe(0);
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from profiles where is_demo`)).rows[0].n).toBe(1);
+    // The real learner and their experience survive.
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from experiences where title = 'REAL LEARNER SECRET TITLE'`)).rows[0].n).toBe(1);
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from profiles where id = $1`, [REAL])).rows[0].n).toBe(1);
   });
 });

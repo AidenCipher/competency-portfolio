@@ -35,7 +35,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <ViewTransition>{children}</ViewTransition>
       </main>
       <footer className="border-t border-line pt-4 text-xs text-ink-3">
-        Your files are private: visible only to you, the validators you choose, and anyone you give a share link to.
+        Your files are private: visible only to you, the validators you choose, and anyone you give a share link to.{" "}
+        <Link href="/privacy" className="underline">Privacy</Link>
       </footer>
     </div>
   );

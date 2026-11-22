@@ -18,7 +18,7 @@ async function checkAllScreens(browser: Browser, scheme: "light" | "dark") {
   const tag = `${scheme}-${Date.now()}`;
 
   // Public screens.
-  for (const path of ["/", "/login", "/demo", "/validate/not-a-real-token"]) {
+  for (const path of ["/", "/login", "/demo", "/privacy", "/no-such-page", "/validate/not-a-real-token"]) {
     await page.goto(path);
     await scan(page, `${path} (${scheme})`);
   }

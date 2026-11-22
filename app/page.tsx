@@ -78,7 +78,8 @@ export default function Home() {
       <footer className="flex flex-col gap-2 border-t border-line pt-4 text-sm text-ink-2">
         <p>
           <strong className="font-medium text-ink">Privacy.</strong> Your files are private: visible only to you, the validators you
-          choose, and anyone you give a share link to. We use no analytics or advertising trackers.
+          choose, and anyone you give a share link to. We use no analytics or advertising trackers.{" "}
+          <Link href="/privacy" className="underline">Read the privacy notice</Link>.
         </p>
         <p>Scores use working assumptions the team is validating with faculty. They are a guide to your evidence, not a grade.</p>
       </footer>

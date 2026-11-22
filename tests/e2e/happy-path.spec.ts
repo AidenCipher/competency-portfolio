@@ -341,3 +341,22 @@ test("scripted bursts get real HTTP 429s from the shared limiter (validator link
   expect(loginStatuses.slice(20).every((s) => s === 429)).toBe(true);
   await loginCtx.dispose();
 });
+
+test("unknown pages show a helpful 404, and the privacy notice is public and analytics-free", async ({ page }) => {
+  const res = await page.goto("/definitely-not-a-page");
+  expect(res?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: /couldn.t find that page/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /go to the home page/i })).toBeVisible();
+
+  const priv = await page.goto("/privacy");
+  expect(priv?.status()).toBe(200);
+  await expect(page.getByRole("heading", { name: /your evidence stays yours/i })).toBeVisible();
+  await expect(page.getByText(/no analytics, no advertising trackers/i)).toBeVisible();
+  await expect(page.getByText(/stored only a one-way hash|only a one-way hash of the link/i)).toBeVisible();
+  // No third-party scripts or trackers are loaded on any page we serve.
+  const external = new Set<string>();
+  page.on("request", (r) => { const u = new URL(r.url()); if (u.origin !== new URL(page.url()).origin) external.add(u.origin); });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  expect([...external]).toEqual([]);
+});
