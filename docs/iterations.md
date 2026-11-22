@@ -194,7 +194,7 @@ production alias (HTTP 200 anonymously).
 **Live deployment (second run, after the server key was set).** `SUPABASE_SERVICE_ROLE_KEY` turned out not to be on the Vercel
 project when first checked (the variable list showed only the public ones and `CRON_SECRET`), so it was set as a Sensitive
 variable for Production and Preview and the app redeployed. `npm run smoke:live -- https://competency-portfolio.vercel.app` then
-passed **19 of 19**, and the live landing Lighthouse numbers above were measured. Still open: a real fresh-account sign-up on
+passed **20 of 20**, and the live landing Lighthouse numbers above were measured. Still open: a real fresh-account sign-up on
 the live URL (Google sign-in or the owner's own email link), the dashboard Lighthouse run, Resend, and rotating the Supabase secret
 key (it was pasted into a chat session, so it should be treated as exposed).
 
@@ -243,7 +243,7 @@ credentials, native mobile app.
 | Accessibility | axe (WCAG 2.0/2.1 A and AA): zero serious or critical violations on 14 screens/states, light and dark. Keyboard-only Add Experience works. |
 | Performance | Live landing page, mobile Lighthouse: 96, 99, 98 (performance); 100 accessibility, best-practices and SEO. Dashboard (local production build, signed in): 99, 98, 98 / 100. |
 | Security | `npm audit` 0 vulnerabilities; no secrets in the client bundle (scanner with a planted-key negative control); security headers and CSP verified on the live URL; Supabase advisors run and each remaining finding explained (docs/deploy.md); live burst test returns HTTP 429. |
-| Live checks | `npm run smoke:live`: 19 of 19 passing against https://competency-portfolio.vercel.app. |
+| Live checks | `npm run smoke:live`: 20 of 20 passing against https://competency-portfolio.vercel.app. |
 
 ### Not verified (state this in the report)
 Resend email delivery; a completed Google sign-in (verified only up to Google's own sign-in page); a full fresh-account
@@ -305,6 +305,6 @@ npm run typecheck && npm run lint && npm test          # 136 unit and database t
 npm run db:start && npm run test:stack                  # 19 real-stack tests (needs Docker)
 npm run test:e2e                                        # 19 browser tests incl. axe, keyboard, reduced motion
 npm run build && npm run scan:bundle                    # no secrets in the client bundle
-npm run smoke:live -- https://competency-portfolio.vercel.app   # 19 live checks
+npm run smoke:live -- https://competency-portfolio.vercel.app   # 20 live checks
 ```
 Lighthouse: see the README. Hosted Supabase advisors and the exception list: docs/deploy.md.
