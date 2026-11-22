@@ -45,7 +45,7 @@ insert into public.role_capabilities (role_id, capability_id, target, weight) va
   ('a0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000006', 75, 1);
 
 -- =====================================================================================
--- DEMO: fictional learner "Jo" (sign in via magic link to jo.demo@example.test; local Inbucket on :54324)
+-- DEMO: fictional learner "Jo" (sign in via magic link to jo.demo@example.test; local mail catcher on :54324)
 -- =====================================================================================
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,

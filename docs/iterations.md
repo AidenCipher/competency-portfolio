@@ -41,6 +41,8 @@ Capability Portfolio view.
   Components off (auth-heavy, per-user pages) and use `proxy.ts`.
 - A static CSP cannot carry nonces, so it allows inline scripts for hydration. Nonce-based CSP forces dynamic
   rendering of every page and is deferred to Sprint 3.
+- Next.js buffers only 10 MB of a request body in `proxy.ts`, which would truncate multi-file uploads, so
+  server-action POSTs (`next-action` header) bypass the proxy; each action calls `requireUser()` itself.
 - Vercel caps function request bodies at about 4.5 MB, below the 10 MB upload limit. Uploads currently go through
   the server action so they can be validated before storage; Sprint 3 may need signed-upload URLs.
 

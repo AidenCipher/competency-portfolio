@@ -32,11 +32,11 @@ Fill `.env.local` from the status output:
 npm run dev     # http://localhost:3000
 ```
 
-Sign-in emails are caught by Inbucket at http://127.0.0.1:54324. The seeded **DEMO** learner is `jo.demo@example.test`
+Sign-in emails are caught by the local mail catcher at http://127.0.0.1:54324. The seeded **DEMO** learner is `jo.demo@example.test`
 (all demo data is fictional and labelled).
 
 Google sign-in needs your own OAuth client: set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and set
-`[auth.external.google] enabled = true` in `supabase/config.toml`.
+`enabled = true` under `[auth.external.google]` in `supabase/config.toml`.
 
 Validation emails use Resend if `RESEND_API_KEY` and `RESEND_FROM` are set. Otherwise the app shows a **copyable
 one-time link** for the learner to send themselves.

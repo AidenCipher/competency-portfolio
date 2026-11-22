@@ -1,6 +1,8 @@
 import type { Page } from "@playwright/test";
 
-const INBUCKET = process.env.INBUCKET_URL ?? "http://127.0.0.1:54324";
+// Local mail catcher (supabase `[local_smtp]`, port 54324). Current CLIs ship Mailpit; older ones shipped
+// Inbucket. Both are supported below. UNVERIFIED against a running stack (Docker was unavailable).
+const MAIL = process.env.MAIL_URL ?? "http://127.0.0.1:54324";
 
 /** Minimal but real PDF (starts with %PDF-). */
 export function tinyPdf(extraBytes = 0): Buffer {
@@ -9,21 +11,40 @@ export function tinyPdf(extraBytes = 0): Buffer {
   return Buffer.concat([Buffer.from(body), Buffer.alloc(extraBytes, 0x20)]);
 }
 
-/** Reads the newest magic-link email for `name@example.test` from the local Inbucket and returns the link. */
+function extractLink(raw: string): string | null {
+  const text = raw.replace(/&amp;/g, "&");
+  return text.match(/https?:\/\/[^\s"'<>]+\/auth\/v1\/verify[^\s"'<>]+/)?.[0] ?? null;
+}
+
+async function viaMailpit(address: string): Promise<string | null> {
+  const res = await fetch(`${MAIL}/api/v1/search?query=${encodeURIComponent(`to:${address}`)}`);
+  if (!res.ok) return null;
+  const list = (await res.json()) as { messages?: { ID: string }[] };
+  const id = list.messages?.[0]?.ID;
+  if (!id) return null;
+  const msg = (await (await fetch(`${MAIL}/api/v1/message/${id}`)).json()) as { Text?: string; HTML?: string };
+  return extractLink(`${msg.Text ?? ""} ${msg.HTML ?? ""}`);
+}
+
+async function viaInbucket(name: string): Promise<string | null> {
+  const res = await fetch(`${MAIL}/api/v1/mailbox/${name}`);
+  if (!res.ok) return null;
+  const list = (await res.json()) as { id: string }[];
+  if (!list.length) return null;
+  const msg = (await (await fetch(`${MAIL}/api/v1/mailbox/${name}/${list[list.length - 1].id}`)).json()) as {
+    body?: { text?: string; html?: string };
+  };
+  return extractLink(`${msg.body?.text ?? ""} ${msg.body?.html ?? ""}`);
+}
+
 export async function latestMagicLink(name: string): Promise<string> {
+  const address = `${name}@example.test`;
   for (let i = 0; i < 20; i++) {
-    const list = (await (await fetch(`${INBUCKET}/api/v1/mailbox/${name}`)).json()) as { id: string }[];
-    if (list.length) {
-      const msg = (await (await fetch(`${INBUCKET}/api/v1/mailbox/${name}/${list[list.length - 1].id}`)).json()) as {
-        body: { text?: string; html?: string };
-      };
-      const text = `${msg.body.text ?? ""} ${msg.body.html ?? ""}`.replace(/&amp;/g, "&");
-      const m = text.match(/https?:\/\/[^\s"'<>]+\/auth\/v1\/verify[^\s"'<>]+/);
-      if (m) return m[0];
-    }
+    const link = (await viaMailpit(address).catch(() => null)) ?? (await viaInbucket(name).catch(() => null));
+    if (link) return link;
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error("No magic-link email arrived in Inbucket");
+  throw new Error("No magic-link email arrived in the local mail catcher");
 }
 
 export async function signIn(page: Page, name: string) {

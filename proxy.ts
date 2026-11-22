@@ -23,4 +23,12 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ["/app/:path*", "/app", "/login"] };
+// Server-action POSTs (header `next-action`) skip the proxy: it buffers request bodies (10 MB by default),
+// which would truncate multi-file uploads. Actions authenticate themselves via requireUser().
+export const config = {
+  matcher: [
+    { source: "/app/:path*", missing: [{ type: "header", key: "next-action" }] },
+    { source: "/app", missing: [{ type: "header", key: "next-action" }] },
+    "/login",
+  ],
+};
