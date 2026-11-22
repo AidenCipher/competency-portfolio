@@ -1,48 +1,11 @@
 -- =====================================================================================
 -- SEED DATA. Everything below the "DEMO" banner is invented demonstration data.
 -- "Jo" is a fictional learner. No figure here is a real result or a real person.
--- Runs on `supabase db reset` (local only). Never run against a real learner database.
+-- Runs on `supabase db reset` (local only; requires the reference-data migration). Never run against a real learner database.
 -- =====================================================================================
 
--- ------------------------------------------------------------ reference data (real configuration)
-insert into public.career_roles (id, slug, name, department, description, is_mapped) values
-  ('a0000000-0000-4000-8000-000000000001', 'hr-business-partner', 'HR Business Partner', 'Human Resources',
-   'Partners with business leaders to align people strategy with business goals.', true),
-  -- PLACEHOLDER names (confirm with the team). Name-only: no capability targets until Sprint 3.
-  ('a0000000-0000-4000-8000-000000000002', 'talent-acquisition-partner', 'Talent Acquisition Partner', 'Human Resources', null, false),
-  ('a0000000-0000-4000-8000-000000000003', 'learning-development-specialist', 'Learning & Development Specialist', 'Human Resources', null, false),
-  ('a0000000-0000-4000-8000-000000000004', 'people-analytics-analyst', 'People Analytics Analyst', 'Human Resources', null, false);
-
-insert into public.capabilities (id, slug, name, statement_template, suggested_experience) values
-  ('c0000000-0000-4000-8000-000000000001', 'communication', 'Communication',
-   'I can communicate complex ideas clearly to different audiences, in writing and in person.',
-   'Present findings or a recommendation to a group and collect feedback on how clear it was.'),
-  ('c0000000-0000-4000-8000-000000000002', 'team-leadership', 'Team Leadership',
-   'I can organise a team, share out work fairly and keep everyone moving toward a shared goal.',
-   'Lead a small project team end to end, and ask a supervisor to comment on how you led.'),
-  ('c0000000-0000-4000-8000-000000000003', 'data-analysis', 'Data Analysis',
-   'I can turn people data into findings and recommendations that others can act on.',
-   'Analyse a real or case data set (e.g. attrition or engagement) and present what it means.'),
-  ('c0000000-0000-4000-8000-000000000004', 'stakeholder-management', 'Stakeholder Management',
-   'I can understand what different stakeholders need and build working relationships with them.',
-   'Run interviews or a consultation with at least two stakeholder groups and report back to them.'),
-  ('c0000000-0000-4000-8000-000000000005', 'conflict-management', 'Conflict Management',
-   'I can help people with opposing views reach a workable outcome.',
-   'Facilitate or mediate a disagreement in a team project and reflect on the approach you used.'),
-  ('c0000000-0000-4000-8000-000000000006', 'problem-solving', 'Problem Solving',
-   'I can break an ambiguous problem into parts, test ideas and land on a practical solution.',
-   'Take a messy case, define the problem, evaluate options and document your reasoning.');
-
--- HRBP targets: Communication 90, Team Leadership 80, Data Analysis 75, Stakeholder Mgmt 85, Conflict Mgmt 70
--- (SPEC section 5). ASSUMPTION: the spec lists no Problem Solving target; 75 is a placeholder to confirm with faculty.
--- Weights are all 1.0 for Sprint 1; Sprint 2 sets real weights.
-insert into public.role_capabilities (role_id, capability_id, target, weight) values
-  ('a0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001', 90, 1),
-  ('a0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000002', 80, 1),
-  ('a0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000003', 75, 1),
-  ('a0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000004', 85, 1),
-  ('a0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000005', 70, 1),
-  ('a0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000006', 75, 1);
+-- Reference data (roles, capabilities, HRBP targets and weights) lives in
+-- supabase/migrations/20261122000003_reference_data.sql so it reaches every environment, not only local resets.
 
 -- =====================================================================================
 -- DEMO: fictional learner "Jo" (sign in via magic link to jo.demo@example.test; local mail catcher on :54324)
