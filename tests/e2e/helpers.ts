@@ -94,3 +94,21 @@ export async function withAllTargetsMet(fn: () => Promise<void>): Promise<void> 
     }
   }
 }
+
+const WORDS45 = Array.from({ length: 45 }, (_, i) => `word${i}`).join(" ");
+
+/** Log an experience (with a PDF) tagged with one capability and ask a validator; returns the copyable validation link. */
+export async function logExperience(page: Page, opts: { title: string; capability: string; validatorEmail: string }): Promise<string> {
+  await page.goto("/app/experiences/new");
+  await page.getByLabel("Title").fill(opts.title);
+  await page.getByLabel("Your role").fill("Lead");
+  await page.getByLabel("Duration").fill("4 weeks");
+  await page.getByLabel("What I did").fill("Led the team through the project.");
+  await page.getByRole("checkbox", { name: opts.capability }).check({ force: true });
+  await page.getByLabel(/what did you actually learn or do/i).fill(WORDS45);
+  await page.locator('input[type="file"]').first().setInputFiles({ name: "report.pdf", mimeType: "application/pdf", buffer: tinyPdf() });
+  await page.getByLabel("Their name").fill("Dr Validator");
+  await page.getByLabel("Their email").fill(opts.validatorEmail);
+  await page.getByRole("button", { name: /save experience/i }).click();
+  return page.getByLabel("Validation link").inputValue();
+}

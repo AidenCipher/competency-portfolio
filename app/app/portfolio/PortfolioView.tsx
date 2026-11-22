@@ -1,6 +1,7 @@
 "use client";
 
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 import Link from "next/link";
 import { useState, ViewTransition } from "react";
 import { EvidenceMeter } from "@/components/EvidenceMeter";
@@ -19,7 +20,7 @@ const STRENGTH_ROWS = [
 
 export function PortfolioView({ capabilities, experiences, roleName, readOnly = false }: { capabilities: CapabilityView[]; experiences: ExperienceView[]; roleName: string; readOnly?: boolean }) {
   const [selectedId, setSelectedId] = useState(capabilities[0]?.id);
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const selected = capabilities.find((c) => c.id === selectedId) ?? capabilities[0];
   if (!selected) return <p className="text-ink-2">No capabilities to show yet.</p>;
   const rows = experiences.filter((e) => selected.experienceIds.includes(e.id));
@@ -46,7 +47,7 @@ export function PortfolioView({ capabilities, experiences, roleName, readOnly = 
       </LayoutGroup>
 
       <AnimatePresence mode="wait">
-        <motion.section key={selected.id} aria-labelledby="cap-h" className="flex flex-col gap-6"
+        <motion.section key={`${selected.id}:${reduce}`} aria-labelledby="cap-h" className="flex flex-col gap-6"
           initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
           <div className="card flex flex-col gap-4 p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">

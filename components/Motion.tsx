@@ -1,14 +1,16 @@
 "use client";
 
-import { motion, useInView, useReducedMotion, animate } from "motion/react";
+import { motion, useInView, animate } from "motion/react";
+import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 import { useEffect, useRef, useState } from "react";
 
 /** Staggered reveal for a group of children. transform/opacity only; no-op under reduced motion. */
 export function Stagger({ children, className, as = "div" }: { children: React.ReactNode; className?: string; as?: "div" | "ul" }) {
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const Comp = as === "ul" ? motion.ul : motion.div;
   return (
     <Comp
+      key={reduce ? "reduced" : "full"}
       className={className}
       initial={reduce ? false : "hidden"}
       animate="show"
@@ -33,7 +35,7 @@ export function StaggerItem({ children, className, as = "div" }: { children: Rea
 
 /** Counts up to `value` once on mount. Shows the final value immediately under reduced motion. */
 export function CountUp({ value, className }: { value: number; className?: string }) {
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const [shown, setShown] = useState(reduce ? value : 0);
   useEffect(() => {
     if (reduce) return;
@@ -47,11 +49,12 @@ export function CountUp({ value, className }: { value: number; className?: strin
 export function FillBar({ pct, className, label }: { pct: number; className?: string; label?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-10% 0px" });
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const clamped = Math.max(0, Math.min(100, pct));
   return (
     <div ref={ref} className="relative h-2.5 w-full overflow-hidden rounded-full bg-surface-2" role="img" aria-label={label}>
       <motion.div
+        key={reduce ? "reduced" : "full"}
         className={`absolute inset-y-0 left-0 w-full origin-left rounded-full ${className ?? "bg-accent"}`}
         style={{ transformOrigin: "left", width: `${clamped}%` }}
         initial={reduce ? false : { scaleX: 0 }}

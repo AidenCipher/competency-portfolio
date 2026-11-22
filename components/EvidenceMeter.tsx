@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 import type { EvidenceStrength } from "@/lib/scoring";
 
 const DOTS: { key: keyof Omit<EvidenceStrength, "dots">; label: string; hint: string }[] = [
@@ -24,6 +25,7 @@ function Dot({ lit, index, reduce }: { lit: boolean; index: number; reduce: bool
         />
       )}
       <motion.span
+        key={reduce ? "reduced" : "full"}
         className={`h-3 w-3 rounded-full border ${lit ? "border-accent bg-accent" : "border-ink-3 bg-transparent"}`}
         initial={reduce ? false : { scale: 0.5, opacity: 0 }}
         animate={reduce ? undefined : { scale: lit ? 1 : 0.8, opacity: lit ? 1 : 0.55 }}
@@ -38,7 +40,7 @@ function Dot({ lit, index, reduce }: { lit: boolean; index: number; reduce: bool
  * Animates transform and opacity only, and not at all under prefers-reduced-motion.
  */
 export function EvidenceMeter({ strength, compact = false }: { strength: EvidenceStrength; compact?: boolean }) {
-  const reduce = !!useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   return (
     <div role="group" aria-label={`Evidence strength: ${strength.dots} of 5`}>
       <ul className={`flex ${compact ? "items-center gap-1.5" : "flex-col gap-2"}`}>
