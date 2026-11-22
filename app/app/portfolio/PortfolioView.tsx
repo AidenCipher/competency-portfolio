@@ -17,7 +17,7 @@ const STRENGTH_ROWS = [
   { key: "validation", label: "Validation" },
 ] as const;
 
-export function PortfolioView({ capabilities, experiences, roleName }: { capabilities: CapabilityView[]; experiences: ExperienceView[]; roleName: string }) {
+export function PortfolioView({ capabilities, experiences, roleName, readOnly = false }: { capabilities: CapabilityView[]; experiences: ExperienceView[]; roleName: string; readOnly?: boolean }) {
   const [selectedId, setSelectedId] = useState(capabilities[0]?.id);
   const reduce = useReducedMotion();
   const selected = capabilities.find((c) => c.id === selectedId) ?? capabilities[0];
@@ -53,7 +53,11 @@ export function PortfolioView({ capabilities, experiences, roleName }: { capabil
               <h2 id="cap-h" className="text-3xl font-semibold">{selected.name}</h2>
               <LevelBadge level={selected.level} />
             </div>
-            <StatementEditor key={`${selected.id}:${selected.statement}`} capabilityId={selected.id} statement={selected.statement} isCustom={selected.statementIsCustom} />
+            {readOnly ? (
+              <p className="text-lg leading-snug">&ldquo;{selected.statement}&rdquo;</p>
+            ) : (
+              <StatementEditor key={`${selected.id}:${selected.statement}`} capabilityId={selected.id} statement={selected.statement} isCustom={selected.statementIsCustom} />
+            )}
             <div className="flex flex-col gap-1">
               <div className="flex justify-between font-mono text-xs text-ink-2"><span>Score {selected.score}</span><span>Target {selected.target}</span></div>
               <FillBar pct={selected.score} label={`${selected.name}: ${selected.score} of ${selected.target}`} />
@@ -85,7 +89,7 @@ export function PortfolioView({ capabilities, experiences, roleName }: { capabil
             {rows.length === 0 ? (
               <div className="flex flex-col gap-2">
                 <p className="text-ink-2">No experience backs this capability yet.</p>
-                <Link href={`/app/experiences/new?capability=${selected.id}`} className="w-fit font-medium text-accent underline">Log an experience</Link>
+                {!readOnly && <Link href={`/app/experiences/new?capability=${selected.id}`} className="w-fit font-medium text-accent underline">Log an experience</Link>}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -131,7 +135,7 @@ export function PortfolioView({ capabilities, experiences, roleName }: { capabil
                                 {v.comment ? <span className="block text-ink-3">&ldquo;{v.comment}&rdquo;</span> : null}
                               </span>
                             ))}
-                            {e.validation !== "validated" && e.validation !== "pending" && <RequestValidation experienceId={e.id} />}
+                            {!readOnly && e.validation !== "validated" && e.validation !== "pending" && <RequestValidation experienceId={e.id} />}
                           </div>
                         </td>
                         <td className="py-3"><EvidenceMeter strength={e.strength} compact /></td>

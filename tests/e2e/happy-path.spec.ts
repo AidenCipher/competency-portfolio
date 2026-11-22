@@ -218,3 +218,27 @@ test("when every target is met the next screen and dashboard show a calm all-met
     await expect(page.getByRole("heading", { name: "All targets met" })).toBeVisible();
   });
 });
+
+test("the public demo portfolio needs no login, is clearly demo data, read-only and noindex", async ({ browser }) => {
+  const ctx = await browser.newContext(); // no session at all
+  const page = await ctx.newPage();
+  const res = await page.goto("/demo");
+  expect(res?.status()).toBe(200);
+  expect(res?.headers()["x-robots-tag"]).toContain("noindex");
+  await expect(page.getByRole("note")).toContainText(/demo data/i);
+  await expect(page.getByRole("heading", { name: /what jo \(demo\) can do/i })).toBeVisible();
+  await expect(page.getByText("[DEMO] Capstone: staff engagement redesign")).toBeVisible();
+
+  // Read-only: nothing to edit, request or download.
+  await expect(page.getByRole("button", { name: /edit statement|write it in your own words|request validation/i })).toHaveCount(0);
+  await expect(page.locator('a[href^="/app/"]')).toHaveCount(0);
+  const body = await page.content();
+  expect(body).not.toMatch(/validator_email|storage_path|token_hash|@example\.test/);
+
+  // The landing page links to it and to sign-up; the demo can switch capability.
+  await page.getByRole("button", { name: /^Team Leadership/ }).click();
+  await expect(page.getByRole("heading", { name: "Team Leadership", level: 2 }).first()).toBeVisible();
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "View demo portfolio" }).first()).toHaveAttribute("href", "/demo");
+  await ctx.close();
+});
