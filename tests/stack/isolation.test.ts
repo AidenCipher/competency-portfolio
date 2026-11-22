@@ -114,6 +114,17 @@ describe("real stack: cross-user isolation", () => {
     expect((await a.client.from("capability_statements").select("text").eq("capability_id", cap).single()).data?.text).toBe("A's own words");
   });
 
+  it("anon can read only the fictional demo portfolio, never a real learner's data", async () => {
+    const anon = createClient(URL, ANON, { auth: { persistSession: false } });
+    const { data, error } = await anon.rpc("demo_portfolio");
+    expect(error).toBeNull();
+    const json = JSON.stringify(data);
+    expect(json).toContain("Jo (DEMO)");
+    expect(json).not.toContain("A private"); // learner A's experience from this run
+    expect(json).not.toContain("A's own words");
+    for (const forbidden of ["validator_email", "token_hash", "storage_path", "user_id"]) expect(json).not.toContain(forbidden);
+  });
+
   it("clients cannot promote themselves to admin", async () => {
     await a.client.from("profiles").update({ role: "admin" }).eq("id", a.id);
     expect((await admin.from("profiles").select("role").eq("id", a.id).single()).data?.role).toBe("learner");
