@@ -1,4 +1,4 @@
-import type { EvidenceStrength, Level, ValidationState } from "@/lib/scoring";
+import type { EvidenceStrength, Level, NextRecommendation, ValidationState } from "@/lib/scoring";
 
 export interface EvidenceView {
   id: string;
@@ -39,6 +39,7 @@ export interface CapabilityView {
   slug: string;
   name: string;
   statement: string;
+  statementTemplate: string;
   statementIsCustom: boolean;
   suggestedExperience: string;
   target: number;
@@ -68,5 +69,8 @@ export interface PortfolioData {
     actions: number;
     certs: number;
   };
+  /** Decided in lib/scoring.ts: recommend / all targets met / no capability map. */
+  recommendation: NextRecommendation<CapabilityView>;
+  /** Convenience: the recommended capability, if any. */
   next: CapabilityView | null;
 }

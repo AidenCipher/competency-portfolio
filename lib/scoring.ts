@@ -167,21 +167,69 @@ export interface RankableCapability {
   weight: number;
 }
 
+export interface RankedCapability<T> {
+  item: T;
+  /** target - score, never negative. */
+  gap: number;
+  /** gap * role weight: what the ranking sorts on. */
+  weightedGap: number;
+}
+
 /**
- * "Next capability to build": largest weighted gap, (target - score) * weight, among capabilities
- * still below target. Ties break on the larger raw gap, then on id for determinism.
- * Returns null when every target is met.
+ * Rank the capabilities still below target by weighted gap, `(target - score) * weight`, largest first.
+ * Ties break on the larger raw gap, then on id so the order is deterministic. Met targets are excluded.
  */
+export function rankCapabilities<T extends RankableCapability>(caps: readonly T[]): RankedCapability<T>[] {
+  return caps
+    .filter((c) => c.score < c.target)
+    .map((item) => {
+      const gap = gapToTarget(item.score, item.target);
+      return { item, gap, weightedGap: gap * item.weight };
+    })
+    .sort((a, b) => {
+      if (b.weightedGap !== a.weightedGap) return b.weightedGap - a.weightedGap;
+      if (b.gap !== a.gap) return b.gap - a.gap;
+      return a.item.id < b.item.id ? -1 : 1;
+    });
+}
+
+/** Thin wrapper kept for callers that only need the top pick. Null when nothing is open. */
 export function nextCapability<T extends RankableCapability>(caps: readonly T[]): T | null {
-  const open = caps.filter((c) => c.score < c.target);
-  if (open.length === 0) return null;
-  return [...open].sort((a, b) => {
-    const wa = (a.target - a.score) * a.weight;
-    const wb = (b.target - b.score) * b.weight;
-    if (wb !== wa) return wb - wa;
-    const ga = a.target - a.score;
-    const gb = b.target - b.score;
-    if (gb !== ga) return gb - ga;
-    return a.id < b.id ? -1 : 1;
-  })[0];
+  return rankCapabilities(caps)[0]?.item ?? null;
+}
+
+export type NextRecommendation<T> =
+  /** Role has no capability map (or no role chosen): say nothing about progress. */
+  | { status: "no_map" }
+  /** Every target met. */
+  | { status: "all_met"; met: number }
+  | { status: "recommend"; top: RankedCapability<T>; others: RankedCapability<T>[]; why: string[] };
+
+/**
+ * The "What should I build next?" decision, including the words for why. The three outcomes are distinct on
+ * purpose: an empty list is "no map", never "all targets met". The UI renders this and computes nothing.
+ */
+export function recommendNext<T extends RankableCapability & { name: string }>(
+  caps: readonly T[],
+  roleName: string | null,
+): NextRecommendation<T> {
+  if (caps.length === 0) return { status: "no_map" };
+  const ranked = rankCapabilities(caps);
+  if (ranked.length === 0) return { status: "all_met", met: caps.length };
+
+  const [top, ...others] = ranked;
+  const role = roleName ?? "your goal";
+  const why: string[] = [
+    top.item.score === 0
+      ? `You have no evidence for ${top.item.name} yet, and ${role} needs ${top.item.target}.`
+      : `${top.item.name} is at ${top.item.score} against a target of ${top.item.target} for ${role}: a gap of ${top.gap}.`,
+  ];
+  const largestRawGap = Math.max(...ranked.map((r) => r.gap));
+  if (top.item.weight > 1 && top.gap < largestRawGap) {
+    why.push(`Another capability has a larger raw gap, but ${top.item.name} counts for more in this role (weight ${top.item.weight}).`);
+  } else if (top.item.weight > 1) {
+    why.push(`It also counts for more in this role (weight ${top.item.weight}).`);
+  }
+  if (others[0]) why.push(`After this, ${others[0].item.name} is the next biggest gap (${others[0].gap}).`);
+  return { status: "recommend", top, others, why };
 }
