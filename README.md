@@ -50,6 +50,8 @@ one-time link** for the learner to send themselves.
 | `npm test` | unit tests + SQL/RLS tests (PGlite, no Docker needed) |
 | `npm run test:stack` | RLS/Storage/token tests against the **running local stack** (`npm run db:start`, `.env.local`) |
 | `npm run test:e2e` | Playwright, one worker (needs `npm run db:start`, `.env.local` and `npx playwright install chromium`). Includes axe, keyboard-only and reduced-motion checks. Each test signs in from its own test IP so the real login rate limiter stays on |
+| `npm run scan:bundle` | after `npm run build`: fails if any secret value, secret-key-shaped string or `service_role` JWT is in `.next/static` |
+| `npm run demo:reset` | reset the fictional demo learner on the local stack (hosted: run `supabase/seed.sql` in the SQL editor) |
 | `npm run db:reset` | rebuild the local DB from migrations + seed |
 
 ## Screens (Sprint 2)
@@ -82,6 +84,18 @@ other roles are name-only ("Coming soon") and cannot be selected.
 - Service-role key is imported only from `lib/supabase/admin.ts` (`server-only`).
 - Rate limiting is **in-memory per server instance** for now; Sprint 3 swaps in Upstash/Vercel KV behind the same interface.
 - CSP is static (`next.config.ts`) and allows inline scripts for Next.js hydration; a nonce-based CSP is a Sprint 3 item.
+
+## Sprint 3 changes
+
+- **Rate limiting is shared across instances**: a Postgres atomic counter (`rate_limit_hit`, migration 5) replaces the in-memory
+  limiter, with a memory fallback if the database errors. Keys are HMAC digests (no raw IPs stored). `proxy.ts` returns real
+  HTTP 429s for `/validate/*` (60 per 10 min per IP) and login POSTs (20 per 10 min); the login action itself refuses at 5.
+- **Uploads no longer pass through server actions**: `prepareUploads` mints single-use signed upload URLs, the browser uploads
+  straight to Storage (so Vercel's ~4.5 MB body cap does not apply; the 10 MB limit is kept), and `createExperience` re-checks
+  every object's real bytes (magic bytes, size, type) before saving anything. A rejected file is deleted. A daily job
+  (`/api/cron/sweep-evidence`, `CRON_SECRET`) removes uploaded files nobody claimed.
+- Auth cookies are HttpOnly + SameSite=Lax (+ Secure in production). Sign-out accepts only same-origin posts.
+- 404, error and privacy pages. Deployment runbook: [docs/deploy.md](docs/deploy.md).
 
 ## Known limitations
 
