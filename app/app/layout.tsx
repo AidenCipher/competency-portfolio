@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 const NAV = [
   { href: "/app", label: "Dashboard" },
   { href: "/app/portfolio", label: "Portfolio" },
+  { href: "/app/next", label: "What next?" },
   { href: "/app/experiences/new", label: "Add experience" },
 ];
 

@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { loadPortfolio } from "@/lib/data";
-import { CountUp, FillBar, Stagger, StaggerItem } from "@/components/Motion";
+import { CountUp, Stagger, StaggerItem } from "@/components/Motion";
 import { LevelBadge, ValidationChip } from "@/components/LevelBadge";
 import { GoalPicker } from "@/components/GoalPicker";
+import { TargetBar } from "@/components/TargetBar";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -69,10 +70,7 @@ export default async function Dashboard() {
                     <LevelBadge level={c.level} />
                   </span>
                 </div>
-                <div className="relative">
-                  <FillBar pct={c.score} label={`${c.name}: ${c.score} of target ${c.target}`} />
-                  <span aria-hidden className="absolute -top-1 h-4 w-0.5 bg-ink" style={{ left: `${c.target}%` }} title={`Target ${c.target}`} />
-                </div>
+                <TargetBar name={c.name} score={c.score} target={c.target} />
                 <p className="text-sm text-ink-2">{c.statement}</p>
               </StaggerItem>
             ))}
@@ -89,12 +87,20 @@ export default async function Dashboard() {
                   {next.score} now, target {next.target}. Biggest gap on your path to {d.roleName}.
                 </p>
                 <p className="text-sm opacity-80">Try: {next.suggestedExperience}</p>
-                <Link href={`/app/experiences/new?capability=${next.id}`} className="mt-1 w-fit rounded-full bg-white px-5 py-2.5 font-medium text-black">
-                  Log this experience
-                </Link>
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <Link href={`/app/experiences/new?capability=${next.id}`} className="rounded-full bg-white px-5 py-2.5 font-medium text-black">
+                    Log this experience
+                  </Link>
+                  <Link href="/app/next" className="text-sm underline opacity-90">Why this one?</Link>
+                </div>
+              </>
+            ) : d.recommendation.status === "all_met" ? (
+              <>
+                <h2 id="next-h" className="text-xl font-semibold">All targets met</h2>
+                <p className="text-sm opacity-80">Nothing is urgent. Keep adding validated evidence to stay strong.</p>
               </>
             ) : (
-              <h2 id="next-h" className="text-xl font-semibold">All targets met. Keep adding evidence.</h2>
+              <h2 id="next-h" className="text-xl font-semibold">Choose a career goal to get a recommendation</h2>
             )}
           </section>
 

@@ -104,7 +104,23 @@ h3 {
   border-radius: 6px;
 }
 
+/* Loop diagram: a highlight travelling through the four steps. Opacity only. */
+@keyframes loop-glow {
+  0% { opacity: 0; }
+  5%, 22% { opacity: 1; }
+  27%, 100% { opacity: 0; }
+}
+.loop-glow {
+  opacity: 0;
+  animation: loop-glow 8s linear infinite;
+  animation-delay: calc(var(--i, 0) * 2s);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .loop-glow {
+    animation: none;
+    opacity: 0;
+  }
   *,
   *::before,
   *::after {

@@ -1,6 +1,6 @@
 // REQUIRES the local Supabase stack (npm run db:start) and .env.local. See README "Running the e2e test".
 import { expect, test } from "@playwright/test";
-import { expireValidationLinks, signIn, tinyPdf } from "./helpers";
+import { expireValidationLinks, signIn, tinyPdf, withAllTargetsMet } from "./helpers";
 
 const REFLECTION = Array.from({ length: 45 }, (_, i) => `word${i}`).join(" ");
 
@@ -168,4 +168,53 @@ test("a learner can write, save and reset a capability statement", async ({ page
 
   await page.getByRole("button", { name: /use suggested wording/i }).click();
   await expect(page.getByText(/I can communicate complex ideas clearly/)).toBeVisible();
+});
+
+test("what-next recommends Stakeholder Management, prefills the form, and changes after validated evidence", async ({ page, browser }) => {
+  await signIn(page, `next${Date.now()}`);
+  await page.getByRole("button", { name: /set goal/i }).click();
+
+  await page.goto("/app/next");
+  await expect(page.getByRole("heading", { name: "Stakeholder Management", level: 2 })).toBeVisible();
+  await expect(page.getByText(/no evidence for Stakeholder Management yet/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /continuous capability loop/i })).toBeVisible();
+
+  // "Log this experience" prefills the capability tag.
+  await page.getByRole("link", { name: "Log this experience" }).click();
+  await expect(page.getByRole("checkbox", { name: "Stakeholder Management" })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Communication" })).not.toBeChecked();
+  await page.getByLabel("Title").fill("Stakeholder interviews");
+  await page.getByLabel("Your role").fill("Interviewer");
+  await page.getByLabel("Duration").fill("3 weeks");
+  await page.getByLabel("What I did").fill("Interviewed two stakeholder groups.");
+  await page.getByLabel(/what did you actually learn or do/i).fill(REFLECTION);
+  await page.locator('input[type="file"]').first().setInputFiles({ name: "report.pdf", mimeType: "application/pdf", buffer: tinyPdf() });
+  await page.getByLabel("Their name").fill("Dr Validator");
+  await page.getByLabel("Their email").fill("next-validator@example.test");
+  await page.getByRole("button", { name: /save experience/i }).click();
+  const link = await page.getByLabel("Validation link").inputValue();
+
+  const ctx = await browser.newContext();
+  const vp = await ctx.newPage();
+  await vp.goto(link);
+  await vp.getByRole("button", { name: /submit response/i }).click();
+  await expect(vp.getByText(/your response was recorded/i)).toBeVisible();
+  await ctx.close();
+
+  await page.goto("/app/next");
+  await expect(page.getByRole("heading", { name: "Communication", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Stakeholder Management", level: 2 })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /log an experience for stakeholder management/i })).toBeVisible();
+});
+
+test("when every target is met the next screen and dashboard show a calm all-met state", async ({ page }) => {
+  await signIn(page, `allmet${Date.now()}`);
+  await page.getByRole("button", { name: /set goal/i }).click();
+  await withAllTargetsMet(async () => {
+    await page.goto("/app/next");
+    await expect(page.getByRole("heading", { name: /every target for hr business partner is met/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Log this experience" })).toHaveCount(0);
+    await page.goto("/app");
+    await expect(page.getByRole("heading", { name: "All targets met" })).toBeVisible();
+  });
 });

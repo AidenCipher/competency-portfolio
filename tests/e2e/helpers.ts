@@ -70,3 +70,27 @@ export async function expireValidationLinks(validatorEmail: string): Promise<voi
     .eq("status", "pending");
   if (error || !count) throw new Error("could not expire the validation link");
 }
+
+function adminClient() {
+  process.loadEnvFile(".env.local");
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+}
+
+/**
+ * Test-only: run `fn` with every HRBP target set to 0 (so any learner has "met every target"), then restore the
+ * real targets from a snapshot, even if `fn` throws. Local stack only; the e2e suite runs with one worker.
+ */
+export async function withAllTargetsMet(fn: () => Promise<void>): Promise<void> {
+  const admin = adminClient();
+  const snap = await admin.from("role_capabilities").select("role_id, capability_id, target");
+  if (snap.error || !snap.data?.length) throw new Error("could not snapshot targets");
+  try {
+    const { error } = await admin.from("role_capabilities").update({ target: 0 }).gte("target", 0);
+    if (error) throw new Error("could not zero targets");
+    await fn();
+  } finally {
+    for (const r of snap.data) {
+      await admin.from("role_capabilities").update({ target: r.target }).eq("role_id", r.role_id).eq("capability_id", r.capability_id);
+    }
+  }
+}
