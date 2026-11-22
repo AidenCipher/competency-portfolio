@@ -205,3 +205,106 @@ callback `https://aoidydcdvwrquhslvwll.supabase.co/auth/v1/callback` and scope `
 aoidydcdvwrquhslvwll.supabase.co") with no error page and no CSP violation. **Not verified:** a completed sign-in (needs the
 owner's Google account) and the app's session after the callback. The OAuth client secret was pasted into a chat session and
 should be rotated.
+
+
+---
+
+# CIA 3 final report support
+
+Structure: (1) outcomes, (2) stakeholder feedback and impact, (3) lessons learned, (4) limitations and next steps, (5) how to
+reproduce each claim. Everything in sections 1, 3 and 5 comes from this repository's history and test runs. **Section 2 is a
+template: no stakeholder feedback has been recorded in this repository, and none is invented here.**
+
+## 1. Outcomes
+
+### Scope delivered against the team's MoSCoW backlog
+| Sprint | Planned (SPEC section 1) | Delivered |
+|---|---|---|
+| 1 (26 Nov) | Foundation + all Musts: reflection prompt, Add Experience, capability tagging, evidence attachment, dashboard progress, validation by faculty/mentor, Capability Portfolio view | All seven, on the real local Supabase stack. Sign-up, evidence upload, validator link, endorsement and score change verified end to end. |
+| 2 (10 Dec) | Shoulds: capability statements, evidence-strength meter, HRBP capability map, "What should I build next?", landing page, motion | All, plus a public read-only demo portfolio and an experience detail page. Other roles are name-only ("Coming soon"), as planned. |
+| 3 (12 Dec) | Harden, deploy, present. Coulds only if time remains | Hardening, hosted Supabase, Vercel deployment, 404/500/privacy pages, demo reset script. **No Could-have was built** (share link, PDF export, mentor reminder, goal switcher): core hardening and deployment took the time. |
+
+Team decisions kept as **Won't**: employer login/search, LinkedIn/university integrations, AI auto-tagging, blockchain
+credentials, native mobile app.
+
+### Product outcomes (what exists and works)
+- A learner can sign up, choose HR Business Partner, log an experience with a file and a reflection, request validation, and see
+  scores and the evidence meter update. A validator needs no account: a single-use link that expires after 14 days, with only a
+  hash stored.
+- Scores follow SPEC section 4 exactly (`lib/scoring.ts`, pure functions, unit-tested). The ranking behind "what next" is a
+  rule, not a model, and says why.
+- Learners cannot read each other's rows or files. This is enforced in the database (row-level security) and tested against the
+  real stack, not only in the app.
+
+### Engineering outcomes (measured)
+| Measure | Result |
+|---|---|
+| Automated tests | 136 unit/database tests, 19 real-stack tests (real GoTrue, PostgREST, Storage), 18 browser tests (Playwright, including axe, keyboard-only and reduced-motion). All passing on the final code. |
+| Accessibility | axe (WCAG 2.0/2.1 A and AA): zero serious or critical violations on 14 screens/states, light and dark. Keyboard-only Add Experience works. |
+| Performance | Live landing page, mobile Lighthouse: 96, 99, 98 (performance); 100 accessibility, best-practices and SEO. Dashboard (local production build, signed in): 99, 98, 98 / 100. |
+| Security | `npm audit` 0 vulnerabilities; no secrets in the client bundle (scanner with a planted-key negative control); security headers and CSP verified on the live URL; Supabase advisors run and each remaining finding explained (docs/deploy.md); live burst test returns HTTP 429. |
+| Live checks | `npm run smoke:live`: 19 of 19 passing against https://competency-portfolio.vercel.app. |
+
+### Not verified (state this in the report)
+Resend email delivery; a completed Google sign-in (verified only up to Google's own sign-in page); a full fresh-account
+end-to-end run on production including a file upload and an endorsement; the dashboard Lighthouse run on the live URL. The
+weights, the Problem Solving target (75), the three other role names and the scoring constants are team assumptions, not
+research results.
+
+## 2. Stakeholder feedback and impact (TEMPLATE, to be completed by the team)
+
+Record real feedback only, with who gave it and when. One row per piece of feedback.
+
+| Stakeholder (role, not a name if they prefer) | Date | What they said or did | Product change made (or why not) | Evidence (commit, doc or screenshot) |
+|---|---|---|---|---|
+| _faculty / programme lead_ | | | | |
+| _mentor or industry contact_ | | | | |
+| _peer / learner who tried the demo_ | | | | |
+
+Prompts that fit this product: Do the weights and the Strong/Proficient/Developing thresholds feel right to faculty? Did a
+validator find the single-use link easy? Did learners understand "what should I build next"? What would an employer want to
+see that the portfolio does not show? Items the SPEC already flags for faculty input: target values for roles other than
+HRBP, the Problem Solving target, and which email sender/domain to use.
+
+## 3. Lessons learned (each one happened in this build)
+1. **Test the real thing, and say what you did not.** Early RLS tests ran on an in-process Postgres with stand-in `auth` and
+   `storage` schemas. They were useful but could not prove isolation of real files. Running the same claims against the real
+   stack later caught a test that passed for the wrong reason (a wrong parameter name produced "function not found", not
+   "access denied"). Reports now separate "verified on the real stack" from "verified on a stand-in".
+2. **Specs hide edge cases.** The scoring formula reaches 100 after about 30 perfect experiences although the spec says
+   "capped below 100". A unit test caught it; the cap is 99.
+3. **Accessibility tests find real bugs, not only paperwork.** An axe run with reduced motion enabled exposed a hydration
+   mismatch that affected only reduced-motion users (a Sprint 1 bug). A later review found the statement editor lost keyboard
+   focus after saving, which axe cannot detect, so the browser test now asserts focus.
+4. **Design for the platform you deploy to.** Vercel caps request bodies at about 4.5 MB while the spec allows 10 MB files.
+   Uploads moved to single-use signed URLs straight to Storage, with the server re-checking the real bytes afterwards.
+5. **Security controls need adversarial tests.** The upload guards (an 11 MB file, a reused upload token, a token for another
+   path, a disallowed content type) are tested against real Storage. A bare `grep` for `sb_secret_` produced a false alarm from a
+   library; a scanner that checks real secret values and decoded JWT roles replaced it and was proven against a planted key.
+6. **Defaults and silent gaps bite at deploy time.** The server-side Supabase key was missing from the hosted project, and
+   the first live smoke test exposed it through a 500 and a missing 429. A scripted post-deploy check turned that into a
+   five-minute fix.
+7. **Secrets do not belong in chat or commit history.** Keys pasted into a conversation are treated as exposed and rotated;
+   server-only keys live only in the host's Sensitive settings.
+8. **Hosted free tiers have hidden limits.** Supabase's built-in email only reaches the organisation's own members, Resend
+   needs a verified domain, and free projects pause when idle. These shaped the sign-in design (Google plus a copyable link).
+9. **Tool limits are information.** Creating a billable cloud resource was blocked until the owner did it personally; the plan
+   adapted instead of working around the control.
+
+## 4. Limitations and next steps
+- No Could-haves: share link (table and RLS exist), PDF export, mentor reminder, role switcher.
+- In-app deletion of an account or data is not self-service (the privacy page says to ask the programme team).
+- The CSP allows inline scripts (a nonce-based CSP would make every page dynamic and cost landing-page performance); accepted
+  and documented.
+- Production email for validators and magic links needs a verified sending domain.
+- Rotate the Supabase secret key and the Google client secret that were shared in a chat session.
+
+## 5. How to reproduce each claim
+```bash
+npm run typecheck && npm run lint && npm test          # 136 unit and database tests
+npm run db:start && npm run test:stack                  # 19 real-stack tests (needs Docker)
+npm run test:e2e                                        # 18 browser tests incl. axe, keyboard, reduced motion
+npm run build && npm run scan:bundle                    # no secrets in the client bundle
+npm run smoke:live -- https://competency-portfolio.vercel.app   # 19 live checks
+```
+Lighthouse: see the README. Hosted Supabase advisors and the exception list: docs/deploy.md.
