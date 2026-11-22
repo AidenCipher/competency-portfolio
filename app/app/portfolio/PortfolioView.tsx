@@ -57,7 +57,7 @@ export function PortfolioView({ capabilities, experiences, roleName, readOnly = 
             {readOnly ? (
               <p className="text-lg leading-snug">&ldquo;{selected.statement}&rdquo;</p>
             ) : (
-              <StatementEditor key={`${selected.id}:${selected.statement}`} capabilityId={selected.id} statement={selected.statement} isCustom={selected.statementIsCustom} />
+              <StatementEditor key={selected.id} capabilityId={selected.id} statement={selected.statement} isCustom={selected.statementIsCustom} />
             )}
             <div className="flex flex-col gap-1">
               <div className="flex justify-between font-mono text-xs text-ink-2"><span>Score {selected.score}</span><span>Target {selected.target}</span></div>

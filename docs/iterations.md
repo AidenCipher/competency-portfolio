@@ -110,6 +110,13 @@ in `.next/static`, `npm audit` 0 vulnerabilities. Not covered: Google sign-in, R
 - The e2e suite hit the app's own login rate limit after five sign-ins; each test now signs in from its own test IP so
   the limiter stays on, and a test proves the sixth request from one IP is refused. Playwright is pinned to one worker
   because one test temporarily edits shared reference data.
+- Review of the finished work found the statement editor lost its "saved" announcement and keyboard focus after saving
+  (a key that changed with the saved text remounted it). axe cannot detect that; the e2e now asserts the status message and
+  that focus returns to the Edit button. Two landing-page claims nobody on the team had approved ("Free to try", "set a
+  goal in a minute") were removed.
+- One unexplained flake: once, right after the statement feature was added, the dashboard showed the template while the
+  database already held the saved text. It did not reproduce in more than five later runs (three in a row, then full suites), so it is
+  recorded here rather than explained.
 - Lighthouse results depend on machine load; see the README note.
 
 **Adaptations / assumptions to confirm with faculty or the team.**

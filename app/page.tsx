@@ -43,7 +43,7 @@ export default function Home() {
               <Link href="/login" className={`${btn} bg-accent text-accent-ink`}>Start your portfolio</Link>
               <Link href="/demo" className={`${btn} border border-line bg-surface`}>View demo portfolio</Link>
             </div>
-            <p className="text-sm text-ink-2">Free to try. The demo uses a fictional learner.</p>
+            <p className="text-sm text-ink-2">The demo uses a fictional learner.</p>
           </div>
           <div className="flex justify-center"><CapabilityGraph /></div>
         </section>
@@ -67,7 +67,7 @@ export default function Home() {
 
         <section className="flex flex-col items-start gap-4 rounded-[var(--radius-card)] bg-dark-card p-8 text-dark-card-ink" aria-labelledby="cta-h">
           <h2 id="cta-h" className="text-3xl font-semibold">See what a portfolio looks like</h2>
-          <p className="max-w-xl opacity-85">Explore a demo portfolio for a fictional learner, or start your own and set a goal in a minute.</p>
+          <p className="max-w-xl opacity-85">Explore a demo portfolio for a fictional learner, or start your own and choose a career goal.</p>
           <div className="flex flex-wrap gap-3">
             <Link href="/demo" className={`${btn} bg-white text-black`}>View demo portfolio</Link>
             <Link href="/login" className={`${btn} border border-white/40`}>Sign up</Link>

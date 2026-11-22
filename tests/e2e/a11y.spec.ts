@@ -36,9 +36,13 @@ async function checkAllScreens(browser: Browser, scheme: "light" | "dark") {
 
   // With data: a logged experience, a valid validator page, the detail page and the portfolio (editor open too).
   const link = await logExperience(page, { title: "A11y experience", capability: "Team Leadership", validatorEmail: `a11y-${tag}@example.test` });
+  await scan(page, `experience-saved panel with copyable link (${scheme})`);
   await page.goto(link);
   await expect(page.getByRole("heading", { name: "A11y experience" })).toBeVisible();
   await scan(page, `/validate/<valid token> (${scheme})`);
+  await page.getByRole("button", { name: /submit response/i }).click();
+  await expect(page.getByText(/your response was recorded/i)).toBeVisible();
+  await scan(page, `/validate/<token> after a decision (${scheme})`);
 
   await page.goto("/app");
   await scan(page, `/app with data (${scheme})`);

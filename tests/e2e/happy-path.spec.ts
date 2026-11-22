@@ -172,6 +172,9 @@ test("a learner can write, save and reset a capability statement", async ({ page
   await box.fill("I can explain a hard idea to a sceptical room.");
   await page.getByRole("button", { name: /save statement/i }).click();
   await expect(page.getByText("I can explain a hard idea to a sceptical room.")).toBeVisible();
+  // The confirmation is announced and keyboard focus lands back on the Edit button (not dropped to <body>).
+  await expect(page.getByRole("status").filter({ hasText: "Statement saved." })).toBeVisible();
+  await expect(page.getByRole("button", { name: /edit statement/i })).toBeFocused();
 
   // Shown on the dashboard too.
   await page.goto("/app");
@@ -187,6 +190,8 @@ test("a learner can write, save and reset a capability statement", async ({ page
 
   await page.getByRole("button", { name: /use suggested wording/i }).click();
   await expect(page.getByText(/I can communicate complex ideas clearly/)).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Back to the suggested wording." })).toBeVisible();
+  await expect(page.getByRole("button", { name: /write it in your own words/i })).toBeFocused();
 });
 
 test("what-next recommends Stakeholder Management, prefills the form, and changes after validated evidence", async ({ page, browser }) => {
