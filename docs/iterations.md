@@ -144,9 +144,9 @@ there is no git remote. See [deploy.md](deploy.md) for the runbook and `npm run 
 | Production URL works end to end with a fresh account | **Not yet.** Deployed and reachable at https://competency-portfolio.vercel.app (Vercel project `competency-portfolio`, functions in `sin1`), but the server-only Supabase key is not set on Vercel yet, and sign-up email needs custom SMTP or Google sign-in. |
 | Headers and CSP verified on production; no secrets in the client bundle | **Pass on the live URL for headers/CSP** (`npm run smoke:live`: CSP incl. Supabase connect-src, HSTS, nosniff, Referrer/Permissions-Policy, X-Frame-Options, no X-Powered-By). Bundle scan clean on the local build of the same commit. |
 | Advisors clean or each exception documented | **Pass (hosted).** Security: one finding fixed (`owns_experience` moved to a non-exposed schema, migration 7); the other 4 are intentional or Supabase-owned and each is explained in deploy.md. Performance: INFO only, explained. |
-| Rate limits return 429 under a scripted burst | **Pass (local real stack).** 60 x 200 then 429 + `Retry-After` on `/validate/*`; 20 then 429 on login POSTs; shared Postgres counter, atomic under concurrency (test). To repeat on the live URL. |
+| Rate limits return 429 under a scripted burst | **Pass, locally and on the live URL.** Live: a burst of 70 requests to `/validate/*` got 429 from request 59 (earlier checks use some of the 60 allowed); the hosted `rate_limits` table shows the shared counters (keys are HMAC digests, no IPs). Locally also: 20 then 429 on login POSTs; atomic under concurrency (test). |
 | Revoked share link returns 404 immediately | **Not built** (Could-have, skipped; core work took priority). |
-| Lighthouse >= 90 / >= 95 on landing and dashboard | **Landing: pass** (Sprint 2: 99 to 100 / 100). **Dashboard: not yet measured**; to do on the deployed build. |
+| Lighthouse >= 90 / >= 95 on landing and dashboard | **Landing: pass on the live URL** (mobile, 3 runs): performance 96, 99, 98; accessibility, best-practices, SEO 100. **Dashboard: not yet measured** (needs a signed-in session). |
 
 **Done in this round.**
 - Shared Postgres-backed rate limiter; real HTTP 429s from `proxy.ts`.
@@ -190,3 +190,10 @@ server-only call): `/validate` returned 500 and the shared limiter fell back to 
 Both are expected to clear once the key is set and the app redeployed; to be re-run and reported then. Functions run in `sin1`
 (`x-vercel-id: bom1::sin1`: bom1 is only the edge that received the request). Vercel Authentication did not block the
 production alias (HTTP 200 anonymously).
+
+**Live deployment (second run, after the server key was set).** `SUPABASE_SERVICE_ROLE_KEY` turned out not to be on the Vercel
+project when first checked (the variable list showed only the public ones and `CRON_SECRET`), so it was set as a Sensitive
+variable for Production and Preview and the app redeployed. `npm run smoke:live -- https://competency-portfolio.vercel.app` then
+passed **19 of 19**, and the live landing Lighthouse numbers above were measured. Still open: a real fresh-account sign-up on
+the live URL (Google sign-in or the owner's own email link), the dashboard Lighthouse run, Resend, and rotating the Supabase secret
+key (it was pasted into a chat session, so it should be treated as exposed).
