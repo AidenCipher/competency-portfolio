@@ -87,11 +87,11 @@ should I build next?" screen, a landing page with an animated hero, motion polis
 | No Stakeholder evidence recommends Stakeholder Management; the recommendation changes after validated evidence | **Pass.** Unit tests with the real HRBP map and weights, and an e2e on the real page. |
 | Every target met shows a sensible state, no crash | **Pass.** Unit test plus an e2e that temporarily sets all targets to 0 (restored afterwards). |
 | Other roles cannot be selected, nothing implies they are mapped | **Pass.** Radio inputs disabled and labelled "Coming soon"; the server action rejects unmapped roles; an unmapped chosen role is treated as no goal (unit test). |
-| axe: zero serious/critical; keyboard-only Add Experience works | **Pass.** axe (WCAG 2.0/2.1 A and AA) on 12 screens and states in light and dark; a real Tab/Space/Enter flow. |
+| axe: zero serious/critical; keyboard-only Add Experience works | **Pass.** axe (WCAG 2.0/2.1 A and AA) on 14 screens and states, each in light and dark; a real Tab/Space/Enter flow. |
 | `prefers-reduced-motion` disables non-essential animation | **Pass.** Computed-style checks (hero graph static and lit, loop highlight off), plus no hydration or console errors in either mode. |
 | Lighthouse mobile, landing: performance >= 90, accessibility >= 95 | **Pass.** Performance 100, 100, 99; accessibility 100 on every run. One earlier run scored 89 while the machine was under heavy load (builds and Docker), so it is reported rather than hidden. |
 
-Other checks: typecheck, lint, 119 unit/SQL tests, 11 real-stack tests, 14 Playwright tests, production build, no secret
+Other checks: typecheck, lint, 119 unit/SQL tests, 11 real-stack tests, 13 Playwright tests, production build, no secret
 in `.next/static`, `npm audit` 0 vulnerabilities. Not covered: Google sign-in, Resend delivery, a Vercel deployment.
 
 **Challenges and what the tests caught.**
