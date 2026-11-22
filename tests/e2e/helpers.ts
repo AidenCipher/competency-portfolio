@@ -1,7 +1,8 @@
 import type { Page } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
 
 // Local mail catcher (supabase `[local_smtp]`, port 54324). Current CLIs ship Mailpit; older ones shipped
-// Inbucket. Both are supported below. UNVERIFIED against a running stack (Docker was unavailable).
+// Inbucket. Both are supported below.  Verified against the local stack (Mailpit).
 const MAIL = process.env.MAIL_URL ?? "http://127.0.0.1:54324";
 
 /** Minimal but real PDF (starts with %PDF-). */
@@ -54,4 +55,18 @@ export async function signIn(page: Page, name: string) {
   await page.getByText(/check your email/i).waitFor();
   await page.goto(await latestMagicLink(name));
   await page.waitForURL(/\/app/);
+}
+
+/** Test-only: push every open validation for this validator email past its expiry (service role, local stack). */
+export async function expireValidationLinks(validatorEmail: string): Promise<void> {
+  process.loadEnvFile(".env.local");
+  const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false },
+  });
+  const { error, count } = await admin
+    .from("validations")
+    .update({ expires_at: new Date(Date.now() - 1000).toISOString() }, { count: "exact" })
+    .eq("validator_email", validatorEmail)
+    .eq("status", "pending");
+  if (error || !count) throw new Error("could not expire the validation link");
 }

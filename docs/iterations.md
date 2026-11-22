@@ -25,14 +25,21 @@ Capability Portfolio view.
   bars that fill on view, and a layout animation when switching capability.
 
 **Verification status (be honest in the report).**
-- Passing: typecheck, lint, 90 unit/SQL tests, production build, no `SERVICE_ROLE` or secret in `.next/static`,
-  security headers present, `/app` redirects when signed out, malformed/unknown tokens return identical pages.
-- RLS cross-user, privilege-escalation and token-lifecycle tests run against an in-process Postgres (PGlite) with
-  stand-ins for Supabase's `auth` and `storage` schemas. They exercise the real migrations, but **not** the real
-  Supabase stack.
-- **Not yet run:** the Playwright happy path and anything needing the real stack (GoTrue magic link, Storage upload,
-  signed URLs). Docker was not installed on the dev machine. The spec is written (`tests/e2e/`) and should be run
-  once `npm run db:start` works.
+- Passing: typecheck, lint, 90 unit/SQL tests, production build, no `SERVICE_ROLE` or secret in `.next/static`
+  (re-checked with the real local service-role key loaded), security headers present, `/app` redirects when signed out.
+- Verified on the **real local Supabase stack** (Docker; migrations and seed apply cleanly on Postgres 17):
+  - `npm run test:e2e` (Playwright, 3 tests): magic-link sign-in via Mailpit, goal selection, experience with a PDF and
+    a 45-word reflection, copyable validation link, endorsement by a signed-out validator, dashboard score moving
+    11 (pending) -> 18 (validated) and "validated 1/1", portfolio row, owner download via a 302 to a signed URL that
+    serves the real PDF, a second learner getting 404 on that URL, `.exe` / renamed `.exe` / 11 MB uploads rejected
+    server-side, and expired / malformed / unknown links returning byte-identical generic pages.
+  - `npm run test:stack` (9 tests, real GoTrue + PostgREST + Storage): learner B cannot read, edit, delete or attach
+    to A's rows, cannot download, sign, list or overwrite A's files; even the owner has no direct Storage access;
+    clients get `permission denied` on `validations.token_hash` and the validator functions; token lifecycle
+    (valid, used, expired, unknown).
+- The PGlite SQL tests (stand-in `auth`/`storage`) remain as a fast, Docker-free check of the same migrations.
+- Not covered: Google sign-in (needs an OAuth client), Resend email delivery, a deployed Vercel environment.
+- A test bug found on first real run: the e2e asserted on the wrong capability tab. The app was right.
 
 **Challenges.**
 - The scoring spec says "capped < 100" but `round(100 * (1 - prod(1 - k)))` reaches 100 after about 30 perfect

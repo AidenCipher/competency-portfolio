@@ -48,7 +48,8 @@ one-time link** for the learner to send themselves.
 | `npm run dev` / `build` / `start` | Next.js |
 | `npm run typecheck` / `lint` | static checks |
 | `npm test` | unit tests + SQL/RLS tests (PGlite, no Docker needed) |
-| `npm run test:e2e` | Playwright (needs `npm run db:start` and `npx playwright install chromium`) |
+| `npm run test:stack` | RLS/Storage/token tests against the **running local stack** (`npm run db:start`, `.env.local`) |
+| `npm run test:e2e` | Playwright (needs `npm run db:start`, `.env.local` and `npx playwright install chromium`) |
 | `npm run db:reset` | rebuild the local DB from migrations + seed |
 
 ## Security notes (Sprint 1)

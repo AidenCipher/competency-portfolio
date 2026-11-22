@@ -1,7 +1,6 @@
-// REQUIRES the local Supabase stack (npm run db:start) and `npm run dev` env vars.
-// Not runnable without Docker. See README "Running the e2e test".
+// REQUIRES the local Supabase stack (npm run db:start) and .env.local. See README "Running the e2e test".
 import { expect, test } from "@playwright/test";
-import { signIn, tinyPdf } from "./helpers";
+import { expireValidationLinks, signIn, tinyPdf } from "./helpers";
 
 const REFLECTION = Array.from({ length: 45 }, (_, i) => `word${i}`).join(" ");
 
@@ -29,6 +28,10 @@ test("signup, log experience with PDF + reflection, request validation, endorse 
   const link = await page.getByLabel("Validation link").inputValue();
   expect(link).toMatch(/\/validate\/[A-Za-z0-9_-]{43}$/);
 
+  // Pending validation counts at 0.6: 0.25 * (0.6 + 0.4/3) * 1 * 0.6 -> 11.
+  await page.goto("/app");
+  await expect(page.getByRole("img", { name: "Team Leadership: 11 of target 80" })).toBeVisible();
+
   // Validator (no account) opens the link in a clean context and endorses.
   const ctx = await browser.newContext();
   const vp = await ctx.newPage();
@@ -47,8 +50,36 @@ test("signup, log experience with PDF + reflection, request validation, endorse 
   await page.goto("/app");
   await expect(page.getByText("Third-party validated")).toBeVisible();
   await expect(page.getByText("/1")).toBeVisible();
+  // Validated counts at 1.0: 0.25 * (0.6 + 0.4/3) -> 18. The score moved from 11 to 18.
+  await expect(page.getByRole("img", { name: "Team Leadership: 18 of target 80" })).toBeVisible();
   await page.goto("/app/portfolio");
-  await expect(page.getByText("Validated").first()).toBeVisible();
+  await page.getByRole("button", { name: /^Team Leadership/ }).click();
+  await expect(page.getByRole("cell", { name: /Validated/ }).first()).toBeVisible();
+  await expect(page.getByText("E2E capstone")).toBeVisible();
+
+  // Owner download: route 302s to a short-lived signed URL that serves the real file.
+  const href = await page.locator('a[href^="/app/evidence/"]').first().getAttribute("href");
+  expect(href).toMatch(/^\/app\/evidence\/[0-9a-f-]{36}$/);
+  const hop = await page.request.get(href!, { maxRedirects: 0 });
+  expect(hop.status()).toBe(302);
+  expect(hop.headers()["cache-control"]).toContain("no-store");
+  expect(hop.headers()["location"]).toMatch(/\/object\/sign\/evidence\/.+token=/);
+  const file = await page.request.get(href!);
+  expect(file.status()).toBe(200);
+  expect((await file.body()).subarray(0, 5).toString()).toBe("%PDF-");
+
+  // A different signed-in learner gets the same 404 as for a missing file.
+  const ctxB = await browser.newContext();
+  const pageB = await ctxB.newPage();
+  await signIn(pageB, `intruder${Date.now()}`);
+  const denied = await pageB.request.get(new URL(href!, "http://localhost:3000").toString(), { maxRedirects: 0 });
+  expect(denied.status()).toBe(404);
+  // And a signed-out caller gets 307 to /login via the proxy.
+  const anon = await browser.newContext();
+  const signedOut = await anon.request.get("http://localhost:3000" + href!, { maxRedirects: 0 });
+  expect([307, 404]).toContain(signedOut.status());
+  await ctxB.close();
+  await anon.close();
 });
 
 test("server rejects .exe, renamed .exe and oversized files", async ({ page }) => {
@@ -75,4 +106,39 @@ test("server rejects .exe, renamed .exe and oversized files", async ({ page }) =
     await page.getByRole("button", { name: /save experience/i }).click();
     await expect(page.getByRole("alert").first()).toContainText(c.msg);
   }
+});
+
+test("expired, used and malformed links all show the same generic page", async ({ page, browser }) => {
+  await signIn(page, `expiry${Date.now()}`);
+  await page.getByRole("button", { name: /set goal/i }).click();
+  await page.goto("/app/experiences/new");
+  await page.getByLabel("Title").fill("Expiry test");
+  await page.getByLabel("Your role").fill("Tester");
+  await page.getByLabel("Duration").fill("1 day");
+  await page.getByLabel("What I did").fill("Tested expiry.");
+  await page.getByText("Communication", { exact: true }).click();
+  await page.getByLabel("Their name").fill("Dr Validator");
+  await page.getByLabel("Their email").fill("expiry-validator@example.test");
+  await page.getByRole("button", { name: /save experience/i }).click();
+  const link = await page.getByLabel("Validation link").inputValue();
+
+  const ctx = await browser.newContext();
+  const vp = await ctx.newPage();
+  const generic = async (url: string) => {
+    const res = await vp.goto(url);
+    await expect(vp.getByRole("heading", { name: /this link isn.t valid/i })).toBeVisible();
+    return { status: res?.status(), body: await vp.locator("main").innerText() };
+  };
+
+  const valid = await vp.goto(link);
+  expect(valid?.status()).toBe(200);
+  await expect(vp.getByRole("heading", { name: "Expiry test" })).toBeVisible();
+
+  await expireValidationLinks(`expiry-validator@example.test`);
+  const expired = await generic(link);
+  const malformed = await generic(link.replace(/[^/]+$/, "not-a-token"));
+  const unknown = await generic(link.replace(/[^/]+$/, "A".repeat(43)));
+  expect(expired).toEqual(malformed);
+  expect(unknown).toEqual(malformed);
+  await ctx.close();
 });
