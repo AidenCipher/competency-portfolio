@@ -146,7 +146,7 @@ there is no git remote. See [deploy.md](deploy.md) for the runbook and `npm run 
 | Advisors clean or each exception documented | **Pass (hosted).** Security: one finding fixed (`owns_experience` moved to a non-exposed schema, migration 7); the other 4 are intentional or Supabase-owned and each is explained in deploy.md. Performance: INFO only, explained. |
 | Rate limits return 429 under a scripted burst | **Pass, locally and on the live URL.** Live: a burst of 70 requests to `/validate/*` got 429 from request 59 (earlier checks use some of the 60 allowed); the hosted `rate_limits` table shows the shared counters (keys are HMAC digests, no IPs). Locally also: 20 then 429 on login POSTs; atomic under concurrency (test). |
 | Revoked share link returns 404 immediately | **Not built** (Could-have, skipped; core work took priority). |
-| Lighthouse >= 90 / >= 95 on landing and dashboard | **Landing: pass on the live URL** (mobile, 3 runs): performance 96, 99, 98; accessibility, best-practices, SEO 100. **Dashboard: not yet measured** (needs a signed-in session). |
+| Lighthouse >= 90 / >= 95 on landing and dashboard | **Landing: pass on the live URL** (mobile, 3 runs): performance 96, 99, 98; accessibility, best-practices, SEO 100. **Dashboard: pass on a LOCAL production build** signed in as the demo learner (mobile, 3 runs): performance 99, 98, 98; accessibility 100; best-practices 100. **Not yet measured on the live URL** (needs a real signed-in session). |
 
 **Done in this round.**
 - Shared Postgres-backed rate limiter; real HTTP 429s from `proxy.ts`.
@@ -197,3 +197,11 @@ variable for Production and Preview and the app redeployed. `npm run smoke:live 
 passed **19 of 19**, and the live landing Lighthouse numbers above were measured. Still open: a real fresh-account sign-up on
 the live URL (Google sign-in or the owner's own email link), the dashboard Lighthouse run, Resend, and rotating the Supabase secret
 key (it was pasted into a chat session, so it should be treated as exposed).
+
+**Google sign-in (verified up to the consent screen).** After the owner enabled the Google provider in Supabase, the project's
+public settings list `google` as enabled; Supabase's authorize URL redirects to `accounts.google.com` with the correct client ID,
+callback `https://aoidydcdvwrquhslvwll.supabase.co/auth/v1/callback` and scope `email profile`; and a real browser click on
+"Continue with Google" on the live site reached Google's genuine sign-in page ("Sign in to continue to
+aoidydcdvwrquhslvwll.supabase.co") with no error page and no CSP violation. **Not verified:** a completed sign-in (needs the
+owner's Google account) and the app's session after the callback. The OAuth client secret was pasted into a chat session and
+should be rotated.
