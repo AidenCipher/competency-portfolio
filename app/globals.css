@@ -170,3 +170,20 @@ h3 {
     var(--surface);
   border: 1px solid var(--line);
 }
+
+/* View transitions (React <ViewTransition>): a short page crossfade, and a morph for the shared experience title.
+   Transform/opacity only: no blur or filter keyframes. Disabled entirely under prefers-reduced-motion. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 160ms;
+}
+::view-transition-group(.morph) {
+  animation-duration: 320ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

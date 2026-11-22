@@ -68,12 +68,31 @@ test("signup, log experience with PDF + reflection, request validation, endorse 
   expect(file.status()).toBe(200);
   expect((await file.body()).subarray(0, 5).toString()).toBe("%PDF-");
 
+  // The title links to a detail page showing the same experience, evidence and validation.
+  await page.evaluate(() => {
+    const w = window as unknown as { __vt: number };
+    w.__vt = 0;
+    const original = document.startViewTransition?.bind(document);
+    if (original) document.startViewTransition = ((...args: Parameters<typeof original>) => { w.__vt += 1; return original(...args); }) as typeof document.startViewTransition;
+  });
+  await page.getByRole("link", { name: "E2E capstone" }).click();
+  await expect(page).toHaveURL(/\/app\/experiences\/[0-9a-f-]{36}$/);
+  const detailUrl = page.url();
+  // The navigation ran as a browser view transition (shared title morph), not just a plain swap.
+  expect(await page.evaluate(() => (window as unknown as { __vt: number }).__vt)).toBeGreaterThanOrEqual(1);
+  await expect(page.getByRole("heading", { name: "E2E capstone", level: 1 })).toBeVisible();
+  await expect(page.getByText("report.pdf")).toBeVisible();
+  await expect(page.getByText("Validated").first()).toBeVisible();
+  await expect(page.getByText(/Led the team through the project/)).toBeVisible();
+
   // A different signed-in learner gets the same 404 as for a missing file.
   const ctxB = await browser.newContext();
   const pageB = await ctxB.newPage();
   await signIn(pageB, `intruder${Date.now()}`);
   const denied = await pageB.request.get(new URL(href!, "http://localhost:3000").toString(), { maxRedirects: 0 });
   expect(denied.status()).toBe(404);
+  expect((await pageB.request.get(detailUrl, { maxRedirects: 0 })).status()).toBe(404); // not their experience
+  expect((await pageB.request.get("/app/experiences/not-a-uuid", { maxRedirects: 0 })).status()).toBe(404);
   // And a signed-out caller gets 307 to /login via the proxy.
   const anon = await browser.newContext();
   const signedOut = await anon.request.get("http://localhost:3000" + href!, { maxRedirects: 0 });

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ViewTransition } from "react";
 import { requireUser } from "@/lib/auth";
 
 const NAV = [
@@ -30,7 +31,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </form>
         </div>
       </header>
-      <main id="main" className="flex-1">{children}</main>
+      <main id="main" className="flex-1">
+        <ViewTransition>{children}</ViewTransition>
+      </main>
       <footer className="border-t border-line pt-4 text-xs text-ink-3">
         Your files are private: visible only to you, the validators you choose, and anyone you give a share link to.
       </footer>

@@ -2,7 +2,7 @@
 
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, ViewTransition } from "react";
 import { EvidenceMeter } from "@/components/EvidenceMeter";
 import { LevelBadge, ValidationChip } from "@/components/LevelBadge";
 import { FillBar } from "@/components/Motion";
@@ -107,7 +107,9 @@ export function PortfolioView({ capabilities, experiences, roleName, readOnly = 
                     {rows.map((e) => (
                       <tr key={e.id} className="border-t border-line align-top">
                         <th scope="row" className="py-3 pr-3 font-medium">
-                          {e.title}
+                          <ViewTransition name={`exp-${e.id}`} share="morph" default="none">
+                            {readOnly ? <span>{e.title}</span> : <Link href={`/app/experiences/${e.id}`} className="hover:underline">{e.title}</Link>}
+                          </ViewTransition>
                           {e.isDemo && <span className="ml-2 rounded bg-warn-soft px-1.5 py-0.5 font-mono text-[0.65rem] uppercase text-warn">Demo</span>}
                         </th>
                         <td className="max-w-xs py-3 pr-3 text-ink-2">{e.description}</td>

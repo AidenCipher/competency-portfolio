@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ViewTransition } from "react";
 import { requireUser } from "@/lib/auth";
 import { loadPortfolio } from "@/lib/data";
 import { CountUp, Stagger, StaggerItem } from "@/components/Motion";
@@ -112,7 +113,9 @@ export default async function Dashboard() {
               <ul className="flex flex-col gap-3">
                 {d.experiences.slice(0, 5).map((e) => (
                   <li key={e.id} className="flex items-center justify-between gap-3">
-                    <Link href="/app/portfolio" className="truncate text-sm font-medium hover:underline">{e.title}</Link>
+                    <ViewTransition name={`exp-${e.id}`} share="morph" default="none">
+                      <Link href={`/app/experiences/${e.id}`} className="truncate text-sm font-medium hover:underline">{e.title}</Link>
+                    </ViewTransition>
                     <ValidationChip state={e.validation} />
                   </li>
                 ))}
