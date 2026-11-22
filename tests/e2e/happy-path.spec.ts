@@ -142,3 +142,30 @@ test("expired, used and malformed links all show the same generic page", async (
   expect(unknown).toEqual(malformed);
   await ctx.close();
 });
+
+test("a learner can write, save and reset a capability statement", async ({ page }) => {
+  await signIn(page, `statement${Date.now()}`);
+  await page.getByRole("button", { name: /set goal/i }).click();
+  await page.goto("/app/portfolio");
+  await page.getByRole("button", { name: /^Communication/ }).click();
+  await page.getByRole("button", { name: /write it in your own words/i }).click();
+  const box = page.getByLabel("Your statement, in your own voice");
+  await box.fill("I can explain a hard idea to a sceptical room.");
+  await page.getByRole("button", { name: /save statement/i }).click();
+  await expect(page.getByText("I can explain a hard idea to a sceptical room.")).toBeVisible();
+
+  // Shown on the dashboard too.
+  await page.goto("/app");
+  await expect(page.getByText("I can explain a hard idea to a sceptical room.")).toBeVisible();
+
+  // Over-long text is refused by the server, not just the counter.
+  await page.goto("/app/portfolio");
+  await page.getByRole("button", { name: /^Communication/ }).click();
+  await page.getByRole("button", { name: /edit statement/i }).click();
+  await page.getByLabel("Your statement, in your own voice").fill("x".repeat(340));
+  await page.getByRole("button", { name: /save statement/i }).click();
+  await expect(page.getByRole("alert").filter({ hasText: /characters/ })).toBeVisible();
+
+  await page.getByRole("button", { name: /use suggested wording/i }).click();
+  await expect(page.getByText(/I can communicate complex ideas clearly/)).toBeVisible();
+});

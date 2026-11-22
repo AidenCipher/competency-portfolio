@@ -8,6 +8,7 @@ import { LevelBadge, ValidationChip } from "@/components/LevelBadge";
 import { FillBar } from "@/components/Motion";
 import type { CapabilityView, ExperienceView } from "@/lib/types";
 import { RequestValidation } from "./RequestValidation";
+import { StatementEditor } from "./StatementEditor";
 
 const STRENGTH_ROWS = [
   { key: "experience", label: "Experience" },
@@ -52,8 +53,7 @@ export function PortfolioView({ capabilities, experiences, roleName }: { capabil
               <h2 id="cap-h" className="text-3xl font-semibold">{selected.name}</h2>
               <LevelBadge level={selected.level} />
             </div>
-            <p className="text-lg leading-snug">&ldquo;{selected.statement}&rdquo;</p>
-            {!selected.statementIsCustom && <p className="text-xs text-ink-3">Suggested wording. Editing your own statement arrives in the next sprint.</p>}
+            <StatementEditor key={`${selected.id}:${selected.statement}`} capabilityId={selected.id} statement={selected.statement} isCustom={selected.statementIsCustom} />
             <div className="flex flex-col gap-1">
               <div className="flex justify-between font-mono text-xs text-ink-2"><span>Score {selected.score}</span><span>Target {selected.target}</span></div>
               <FillBar pct={selected.score} label={`${selected.name}: ${selected.score} of ${selected.target}`} />

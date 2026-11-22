@@ -103,6 +103,17 @@ describe("real stack: cross-user isolation", () => {
     expect(dec.error?.message).toMatch(/permission denied/i);
   });
 
+  it("user B cannot read, change, delete or forge A's capability statement", async () => {
+    const cap = (await admin.from("capabilities").select("id").limit(1).single()).data!.id;
+    const mine = await a.client.from("capability_statements").upsert({ user_id: a.id, capability_id: cap, text: "A's own words" }, { onConflict: "user_id,capability_id" });
+    expect(mine.error).toBeNull();
+    expect((await b.client.from("capability_statements").select("text").eq("user_id", a.id)).data).toEqual([]);
+    await b.client.from("capability_statements").update({ text: "pwned" }).eq("user_id", a.id);
+    await b.client.from("capability_statements").delete().eq("user_id", a.id);
+    expect((await b.client.from("capability_statements").insert({ user_id: a.id, capability_id: cap, text: "forged" })).error).not.toBeNull();
+    expect((await a.client.from("capability_statements").select("text").eq("capability_id", cap).single()).data?.text).toBe("A's own words");
+  });
+
   it("clients cannot promote themselves to admin", async () => {
     await a.client.from("profiles").update({ role: "admin" }).eq("id", a.id);
     expect((await admin.from("profiles").select("role").eq("id", a.id).single()).data?.role).toBe("learner");
