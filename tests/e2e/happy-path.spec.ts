@@ -282,3 +282,30 @@ test("login is rate limited per client IP: the sixth magic-link request in a row
   await expect(page.getByText(/too many attempts/i)).toBeVisible();
   await expect(page.getByText(/check your email/i)).toHaveCount(0);
 });
+
+test("scripted bursts get real HTTP 429s from the shared limiter (validator links and login posts)", async ({ playwright, baseURL }) => {
+  const octet = (Date.now() % 250) + 1;
+  // Validator links: 60 per 10 minutes per IP. Fire 75 guesses from one address.
+  const ctx = await playwright.request.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `192.0.2.${octet}` } });
+  const statuses: number[] = [];
+  for (let i = 0; i < 75; i++) statuses.push((await ctx.get(`/validate/${"A".repeat(43)}`)).status());
+  expect(statuses.slice(0, 60).every((s) => s === 200)).toBe(true);
+  expect(statuses.slice(60).every((s) => s === 429)).toBe(true);
+  const refused = await ctx.get(`/validate/${"B".repeat(43)}`);
+  expect(refused.status()).toBe(429);
+  expect(refused.headers()["retry-after"]).toBe("600");
+  await ctx.dispose();
+
+  // A different client address is unaffected (the limit is per client, not global).
+  const other = await playwright.request.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `192.0.2.${(octet % 250) + 1}` } });
+  expect((await other.get(`/validate/${"A".repeat(43)}`)).status()).toBe(200);
+  await other.dispose();
+
+  // Login form posts: 20 per 10 minutes per IP at the HTTP level (the action itself refuses sooner, with a message).
+  const loginCtx = await playwright.request.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `192.0.2.${((octet + 1) % 250) + 1}` } });
+  const loginStatuses: number[] = [];
+  for (let i = 0; i < 25; i++) loginStatuses.push((await loginCtx.post("/login", { headers: { "next-action": "not-a-real-action" }, data: "[]" })).status());
+  expect(loginStatuses.slice(0, 20).includes(429)).toBe(false);
+  expect(loginStatuses.slice(20).every((s) => s === 429)).toBe(true);
+  await loginCtx.dispose();
+});
