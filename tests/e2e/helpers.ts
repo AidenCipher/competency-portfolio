@@ -48,7 +48,17 @@ export async function latestMagicLink(name: string): Promise<string> {
   throw new Error("No magic-link email arrived in the local mail catcher");
 }
 
+let ipCounter = 0;
+/** A unique documentation-range (TEST-NET-3) address per call, so tests don't share the per-IP login rate limit. */
+export function uniqueTestIp(): string {
+  ipCounter += 1;
+  return `203.0.113.${(Date.now() + ipCounter) % 250 + 1}`;
+}
+
 export async function signIn(page: Page, name: string) {
+  // The app rate-limits magic-link requests per client IP (5 per 10 minutes) and reads x-forwarded-for.
+  // Give each sign-in its own address instead of weakening the limiter.
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": `${uniqueTestIp()}` });
   await page.goto("/login");
   await page.getByLabel("Email").fill(`${name}@example.test`);
   await page.getByRole("button", { name: /email me a sign-in link/i }).click();

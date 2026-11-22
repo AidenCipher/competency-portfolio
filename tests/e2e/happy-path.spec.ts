@@ -261,3 +261,19 @@ test("the public demo portfolio needs no login, is clearly demo data, read-only 
   await expect(page.getByRole("link", { name: "View demo portfolio" }).first()).toHaveAttribute("href", "/demo");
   await ctx.close();
 });
+
+test("login is rate limited per client IP: the sixth magic-link request in a row is refused", async ({ page }) => {
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": `198.51.100.${(Date.now() % 250) + 1}` }); // one address for the whole burst, new each run
+  const attempt = async (i: number) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(`burst${Date.now()}${i}@example.test`);
+    await page.getByRole("button", { name: /email me a sign-in link/i }).click();
+  };
+  for (let i = 0; i < 5; i++) {
+    await attempt(i);
+    await expect(page.getByText(/check your email/i)).toBeVisible();
+  }
+  await attempt(5);
+  await expect(page.getByText(/too many attempts/i)).toBeVisible();
+  await expect(page.getByText(/check your email/i)).toHaveCount(0);
+});
