@@ -61,9 +61,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: process.cwd(),
   experimental: {
-    // 3 files x 10 MB + form fields. Per-file size is enforced in lib/uploads.ts.
-    // NOTE: Vercel serverless functions cap request bodies at ~4.5 MB; see docs/iterations.md.
-    serverActions: { bodySizeLimit: "32mb" },
+    // Files no longer travel through server actions (they upload straight to Storage via signed URLs, then are
+    // verified server-side), so keep the action body limit small: it also keeps us under Vercel's ~4.5 MB cap.
+    serverActions: { bodySizeLimit: "2mb" },
   },
   turbopack: {
     rules: {

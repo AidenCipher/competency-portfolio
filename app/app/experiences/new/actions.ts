@@ -1,15 +1,34 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { randomUUID } from "node:crypto";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { experienceSchema, type FormState } from "@/lib/experience-schema";
-import { checkUpload, MAX_FILES, REJECT_MESSAGES, storagePath } from "@/lib/uploads";
+import { checkUpload, isOwnEvidencePath, MAX_FILES, REJECT_MESSAGES } from "@/lib/uploads";
+import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
 import { issueValidation } from "@/lib/validation-request";
 
 const BUCKET = "evidence";
+
+const uploadsSchema = z
+  .array(
+    z.object({
+      path: z.string().max(300),
+      name: z.string().max(255),
+      kind: z.enum(["report", "presentation", "feedback", "event_doc", "link", "other"]),
+      declaredMime: z.string().max(200).default(""),
+    }),
+  )
+  .max(MAX_FILES);
+
+function safeJson(v: FormDataEntryValue | null): unknown {
+  try {
+    return typeof v === "string" && v ? JSON.parse(v) : [];
+  } catch {
+    return null;
+  }
+}
 
 function fieldErrorsOf(err: import("zod").ZodError): Record<string, string> {
   const out: Record<string, string> = {};
@@ -43,32 +62,50 @@ export async function createExperience(_prev: FormState, form: FormData): Promis
   }
   const input = parsed.data;
 
-  // 2. Validate every file (allow-list, size, magic bytes) before anything is stored.
-  const rawFiles = form.getAll("files");
-  const pairs = rawFiles
-    .map((f, i) => ({ file: f, kind: input.evidenceKinds[i] ?? "other" }))
-    .filter((p): p is { file: File; kind: string } => p.file instanceof File && p.file.size > 0);
-  if (pairs.length > MAX_FILES) {
-    return { status: "error", message: `You can attach up to ${MAX_FILES} files.` };
+  // 2. Files arrive as already-uploaded storage objects (see prepareUploads), never as bytes in this request.
+  //    Re-check every object's REAL bytes here (allow-list, size, magic bytes); nothing is kept unless all pass.
+  if (form.getAll("files").some((f) => f instanceof File && f.size > 0)) {
+    return { status: "error", message: "Files must be uploaded with the form's upload step. Please try again." };
   }
-  const checked: { bytes: Uint8Array; kind: string; check: Extract<ReturnType<typeof checkUpload>, { ok: true }> }[] = [];
-  for (const { file, kind } of pairs) {
-    if (file.size > 10 * 1024 * 1024) {
-      return { status: "error", message: `${REJECT_MESSAGES.too_large} (“${file.name.slice(0, 60)}”)`, fieldErrors: { files: REJECT_MESSAGES.too_large } };
+  const experienceId = z.string().uuid().safeParse(form.get("experienceId")).data;
+  const uploadsParsed = uploadsSchema.safeParse(safeJson(form.get("uploads")));
+  if (!uploadsParsed.success) return { status: "error", message: "We couldn't read your uploaded files. Please try again." };
+  const uploadsIn = uploadsParsed.data;
+  if (uploadsIn.length > 0 && !experienceId) return { status: "error", message: "We couldn't read your uploaded files. Please try again." };
+
+  const admin = createAdminClient();
+  const claimed = uploadsIn.map((u) => u.path).filter((p) => experienceId && isOwnEvidencePath(p, user.id, experienceId));
+  const discard = async () => {
+    // Only paths inside THIS user's folder for THIS experience can ever be removed.
+    if (claimed.length) await admin.storage.from(BUCKET).remove(claimed);
+  };
+  if (new Set(uploadsIn.map((u) => u.path)).size !== uploadsIn.length || claimed.length !== uploadsIn.length) {
+    await discard();
+    return { status: "error", message: "We couldn't verify your uploaded files. Please try again." };
+  }
+  const checked: { path: string; kind: string; check: Extract<ReturnType<typeof checkUpload>, { ok: true }> }[] = [];
+  for (const u of uploadsIn) {
+    const dl = await admin.storage.from(BUCKET).download(u.path);
+    if (dl.error || !dl.data) {
+      await discard();
+      return { status: "error", message: `“${u.name.slice(0, 60)}” didn't finish uploading. Please try again.`, fieldErrors: { files: "A file didn't finish uploading." } };
     }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const check = checkUpload({ name: file.name, declaredMime: file.type, bytes });
-    if (!check.ok) {
-      const msg = REJECT_MESSAGES[check.reason];
-      return { status: "error", message: `“${file.name.slice(0, 60)}”: ${msg}`, fieldErrors: { files: msg } };
+    const bytes = new Uint8Array(await dl.data.arrayBuffer());
+    const check = checkUpload({ name: u.name, declaredMime: u.declaredMime, bytes });
+    // The type the real bytes show must also match the extension of the path we minted.
+    if (!check.ok || !u.path.endsWith(`.${check.type}`)) {
+      await discard();
+      const msg = REJECT_MESSAGES[check.ok ? "bad_content" : check.reason];
+      return { status: "error", message: `“${u.name.slice(0, 60)}”: ${msg}`, fieldErrors: { files: msg } };
     }
-    checked.push({ bytes, kind, check });
+    checked.push({ path: u.path, kind: u.kind, check });
   }
 
   // 3. Write. User-scoped client => RLS decides what is allowed.
   const { data: exp, error: expErr } = await supabase
     .from("experiences")
     .insert({
+      ...(experienceId ? { id: experienceId } : {}),
       user_id: user.id,
       title: input.title,
       type: input.type,
@@ -81,9 +118,8 @@ export async function createExperience(_prev: FormState, form: FormData): Promis
     .single();
   if (expErr || !exp) return { status: "error", message: "We couldn't save your experience. Please try again." };
 
-  const uploaded: string[] = [];
   const rollback = async () => {
-    if (uploaded.length) await createAdminClient().storage.from(BUCKET).remove(uploaded);
+    await discard();
     await supabase.from("experiences").delete().eq("id", exp.id); // cascades to tags/evidence rows
   };
 
@@ -95,21 +131,13 @@ export async function createExperience(_prev: FormState, form: FormData): Promis
     return { status: "error", message: "We couldn't save your capability tags. Please try again." };
   }
 
-  // Uploads go through the service role (no client-side storage policies exist), but only
-  // into this user's own folder, and only after the checks above.
-  const admin = createAdminClient();
+  // Objects were verified above; record them. User-scoped client => RLS requires the path to sit in this user's
+  // folder for this experience.
   for (const f of checked) {
-    const path = storagePath(user.id, exp.id, randomUUID(), f.check.type);
-    const up = await admin.storage.from(BUCKET).upload(path, f.bytes, { contentType: f.check.mime, upsert: false });
-    if (up.error) {
-      await rollback();
-      return { status: "error", message: "A file couldn't be uploaded. Nothing was saved; please try again." };
-    }
-    uploaded.push(path);
     const { error: evErr } = await supabase.from("evidence").insert({
       experience_id: exp.id,
       kind: f.kind,
-      storage_path: path,
+      storage_path: f.path,
       filename: f.check.safeName,
       mime: f.check.mime,
       size_bytes: f.check.size,

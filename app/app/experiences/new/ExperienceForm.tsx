@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { EvidenceMeter } from "@/components/EvidenceMeter";
 import { evidenceStrength, wordCount, REFLECTION_WORDS } from "@/lib/scoring";
@@ -10,8 +10,10 @@ import {
   VALIDATOR_KINDS,
   type FormState,
 } from "@/lib/experience-schema";
-import { MAX_FILES } from "@/lib/uploads";
+import { MAX_FILES, MIME_BY_TYPE, precheckUpload, REJECT_MESSAGES } from "@/lib/uploads";
+import { signedUploadClient } from "@/lib/supabase/browser";
 import { createExperience } from "./actions";
+import { prepareUploads } from "./upload-actions";
 
 type Cap = { id: string; name: string };
 const initial: FormState = { status: "idle" };
@@ -28,7 +30,11 @@ function FieldError({ id, msg }: { id: string; msg?: string }) {
 }
 
 export function ExperienceForm({ capabilities, preselect }: { capabilities: Cap[]; preselect?: string }) {
-  const [state, action, pending] = useActionState(createExperience, initial);
+  const [state, action, actionPending] = useActionState(createExperience, initial);
+  const [, startTransition] = useTransition();
+  // Upload step (before the action): files go straight to Storage via signed URLs, never through a server action.
+  const [upload, setUpload] = useState<{ status: "idle" } | { status: "uploading"; done: number; total: number } | { status: "error"; message: string }>({ status: "idle" });
+  const pending = actionPending || upload.status === "uploading";
   const [vals, setVals] = useState({ title: "", roleTitle: "", durationLabel: "", description: "", reflection: "" });
   const [rows, setRows] = useState<number[]>([0]);
   const [fileCount, setFileCount] = useState<Record<number, boolean>>({});
@@ -52,16 +58,51 @@ export function ExperienceForm({ capabilities, preselect }: { capabilities: Cap[
   const words = wordCount(vals.reflection);
   const fe = state.status === "error" ? (state.fieldErrors ?? {}) : {};
 
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const rawFiles = fd.getAll("files");
+    const kinds = fd.getAll("kinds").map(String);
+    fd.delete("files");
+    fd.delete("kinds");
+    const picked = rawFiles
+      .map((f, i) => ({ file: f, kind: kinds[i] ?? "other" }))
+      .filter((p): p is { file: File; kind: string } => p.file instanceof File && p.file.size > 0);
+
+    if (picked.length > 0) {
+      for (const { file } of picked) {
+        const pre = precheckUpload({ name: file.name, size: file.size });
+        if (!pre.ok) { setUpload({ status: "error", message: `“${file.name.slice(0, 60)}”: ${REJECT_MESSAGES[pre.reason]}` }); return; }
+      }
+      setUpload({ status: "uploading", done: 0, total: picked.length });
+      const prep = await prepareUploads({ files: picked.map((p) => ({ name: p.file.name, size: p.file.size })) });
+      if (!prep.ok) { setUpload({ status: "error", message: prep.message }); return; }
+      const storage = signedUploadClient().storage.from("evidence");
+      for (let i = 0; i < picked.length; i++) {
+        const type = precheckUpload({ name: picked[i].file.name, size: picked[i].file.size });
+        const { error } = await storage.uploadToSignedUrl(prep.uploads[i].path, prep.uploads[i].token, picked[i].file, {
+          contentType: type.ok ? MIME_BY_TYPE[type.type] : undefined,
+        });
+        if (error) { setUpload({ status: "error", message: `“${picked[i].file.name.slice(0, 60)}” couldn't be uploaded. Nothing was saved; please try again.` }); return; }
+        setUpload({ status: "uploading", done: i + 1, total: picked.length });
+      }
+      fd.set("experienceId", prep.experienceId);
+      fd.set("uploads", JSON.stringify(picked.map((p, i) => ({ path: prep.uploads[i].path, name: p.file.name, kind: p.kind, declaredMime: p.file.type }))));
+    }
+    setUpload({ status: "idle" });
+    startTransition(() => action(fd));
+  }
+
   if (state.status === "done") {
     return <Done state={state} />;
   }
 
   return (
-    <form action={action} className="grid gap-8 lg:grid-cols-[1fr_20rem]" noValidate>
+    <form onSubmit={onSubmit} className="grid gap-8 lg:grid-cols-[1fr_20rem]" noValidate>
       <div className="flex flex-col gap-6">
-        {state.status === "error" && (
+        {(upload.status === "error" || state.status === "error") && (
           <p role="alert" className="rounded-xl bg-bad-soft px-4 py-3 text-sm text-bad">
-            {state.message}
+            {upload.status === "error" ? upload.message : state.status === "error" ? state.message : ""}
           </p>
         )}
 
@@ -191,7 +232,7 @@ export function ExperienceForm({ capabilities, preselect }: { capabilities: Cap[
         <div>
           <button type="submit" disabled={pending}
             className="rounded-full bg-accent px-6 py-3 font-medium text-accent-ink disabled:opacity-60">
-            {pending ? "Saving…" : "Save experience"}
+            {upload.status === "uploading" ? `Uploading ${Math.min(upload.done + 1, upload.total)} of ${upload.total}…` : pending ? "Saving…" : "Save experience"}
           </button>
         </div>
       </div>

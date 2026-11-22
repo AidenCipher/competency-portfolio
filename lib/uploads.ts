@@ -109,3 +109,32 @@ export function checkUpload(input: { name: string; declaredMime?: string; bytes:
 export function storagePath(userId: string, experienceId: string, objectId: string, type: FileType): string {
   return `${userId}/${experienceId}/${objectId}.${type}`;
 }
+
+/** Per-user storage budget (all evidence files together). Bounds what one account can park in the bucket. */
+export const USER_STORAGE_BUDGET_BYTES = 100 * 1024 * 1024;
+
+/**
+ * Cheap pre-flight check used BEFORE a signed upload URL is minted: the file type claimed by the name, and the
+ * size the browser declares. It is not trusted: the real bytes are re-checked with checkUpload() after upload.
+ */
+export function precheckUpload(input: { name: string; size: number }): { ok: true; type: FileType; safeName: string } | { ok: false; reason: RejectReason } {
+  if (!Number.isFinite(input.size) || input.size <= 0) return { ok: false, reason: "empty" };
+  if (input.size > MAX_BYTES) return { ok: false, reason: "too_large" };
+  const safeName = sanitizeFilename(input.name);
+  if (safeName === "file" && !input.name.trim()) return { ok: false, reason: "bad_name" };
+  const dot = safeName.lastIndexOf(".");
+  const claimed = EXT_ALIAS[dot >= 0 ? safeName.slice(dot + 1).toLowerCase() : ""];
+  if (!claimed) return { ok: false, reason: "bad_type" };
+  return { ok: true, type: claimed, safeName };
+}
+
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
+/**
+ * A storage path is accepted only if it is exactly `${userId}/${experienceId}/${uuid}.${ext}` for THIS user and
+ * experience. Anything else (other users' folders, traversal, odd extensions) is rejected.
+ */
+export function isOwnEvidencePath(path: string, userId: string, experienceId: string): boolean {
+  if (!new RegExp(`^${UUID}$`).test(userId) || !new RegExp(`^${UUID}$`).test(experienceId)) return false;
+  return new RegExp(`^${userId}/${experienceId}/${UUID}\\.(pdf|pptx|docx|png|jpg)$`).test(path);
+}

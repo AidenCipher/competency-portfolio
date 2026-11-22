@@ -1,6 +1,6 @@
 // REQUIRES the local Supabase stack (npm run db:start) and .env.local. See README "Running the e2e test".
 import { expect, test } from "@playwright/test";
-import { expireValidationLinks, signIn, tinyPdf, withAllTargetsMet } from "./helpers";
+import { evidenceObjectCount, expireValidationLinks, signIn, tinyPdf, withAllTargetsMet } from "./helpers";
 
 const REFLECTION = Array.from({ length: 45 }, (_, i) => `word${i}`).join(" ");
 
@@ -102,7 +102,8 @@ test("signup, log experience with PDF + reflection, request validation, endorse 
 });
 
 test("server rejects .exe, renamed .exe and oversized files", async ({ page }) => {
-  await signIn(page, `uploader${Date.now()}`);
+  const uploader = `uploader${Date.now()}`;
+  await signIn(page, uploader);
   await page.getByRole("button", { name: /set goal/i }).click();
   await page.goto("/app/experiences/new");
 
@@ -125,6 +126,37 @@ test("server rejects .exe, renamed .exe and oversized files", async ({ page }) =
     await page.getByRole("button", { name: /save experience/i }).click();
     await expect(page.getByRole("alert").first()).toContainText(c.msg);
   }
+  // The renamed .exe was uploaded to Storage, then rejected after its real bytes were checked: nothing may remain.
+  expect(await evidenceObjectCount(`${uploader}@example.test`)).toBe(0);
+});
+
+test("a file larger than Vercel's 4.5 MB request cap uploads directly to Storage, is verified, saved and downloadable", async ({ page }) => {
+  await signIn(page, `bigfile${Date.now()}`);
+  await page.getByRole("button", { name: /set goal/i }).click();
+  await page.goto("/app/experiences/new");
+  await page.getByLabel("Title").fill("Big evidence");
+  await page.getByLabel("Your role").fill("Author");
+  await page.getByLabel("Duration").fill("1 week");
+  await page.getByLabel("What I did").fill("Wrote a long report.");
+  await page.getByText("Communication", { exact: true }).click();
+  const size = 8 * 1024 * 1024;
+  await page.locator('input[type="file"]').first().setInputFiles({ name: "long-report.pdf", mimeType: "application/pdf", buffer: tinyPdf(size) });
+  await page.getByRole("button", { name: /save experience/i }).click();
+  await expect(page).toHaveURL(/\/app\/portfolio/, { timeout: 30_000 });
+  await page.getByRole("link", { name: "long-report.pdf" }).click({ trial: true });
+  const href = await page.getByRole("link", { name: "long-report.pdf" }).getAttribute("href");
+  const file = await page.request.get(href!);
+  expect(file.status()).toBe(200);
+  expect((await file.body()).length).toBeGreaterThan(size);
+});
+
+test("the sweep job route is closed without its secret and runs with it", async ({ request }) => {
+  expect((await request.get("/api/cron/sweep-evidence")).status()).toBe(404);
+  expect((await request.get("/api/cron/sweep-evidence", { headers: { authorization: "Bearer wrong-secret-value-123" } })).status()).toBe(404);
+  process.loadEnvFile(".env.local");
+  const ok = await request.get("/api/cron/sweep-evidence", { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
+  expect(ok.status()).toBe(200);
+  expect(await ok.json()).toMatchObject({ ok: true });
 });
 
 test("expired, used and malformed links all show the same generic page", async ({ page, browser }) => {

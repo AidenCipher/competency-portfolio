@@ -122,3 +122,16 @@ export async function logExperience(page: Page, opts: { title: string; capabilit
   await page.getByRole("button", { name: /save experience/i }).click();
   return page.getByLabel("Validation link").inputValue();
 }
+
+/** Test-only: how many evidence files exist in Storage for the user with this email (service role, local stack). */
+export async function evidenceObjectCount(email: string): Promise<number> {
+  const admin = adminClient();
+  const users = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const id = users.data.users.find((u) => u.email === email)?.id;
+  if (!id) return 0;
+  const bucket = admin.storage.from("evidence");
+  const experiences = (await bucket.list(id)).data ?? [];
+  let n = 0;
+  for (const e of experiences) n += ((await bucket.list(`${id}/${e.name}`)).data ?? []).length;
+  return n;
+}

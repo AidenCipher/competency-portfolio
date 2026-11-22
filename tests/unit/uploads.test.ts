@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkUpload, detectType, MAX_BYTES, sanitizeFilename, storagePath } from "@/lib/uploads";
+import { checkUpload, detectType, isOwnEvidencePath, MAX_BYTES, precheckUpload, sanitizeFilename, storagePath } from "@/lib/uploads";
 
 const enc = (s: string) => new TextEncoder().encode(s);
 const bytes = (...parts: (number[] | string)[]) =>
@@ -94,5 +94,38 @@ describe("sanitizeFilename", () => {
 describe("storagePath", () => {
   it("has no user-controlled segments", () => {
     expect(storagePath("u", "e", "o", "pdf")).toBe("u/e/o.pdf");
+  });
+});
+
+describe("precheckUpload", () => {
+  it("accepts allowed names within the size limit and reports the claimed type", () => {
+    expect(precheckUpload({ name: "Report (final).PDF", size: 1234 })).toMatchObject({ ok: true, type: "pdf" });
+    expect(precheckUpload({ name: "photo.jpeg", size: 10 })).toMatchObject({ ok: true, type: "jpg" });
+  });
+  it("rejects bad types, empty and oversized files before any URL is minted", () => {
+    expect(precheckUpload({ name: "setup.exe", size: 100 })).toEqual({ ok: false, reason: "bad_type" });
+    expect(precheckUpload({ name: "x.pdf", size: 0 })).toEqual({ ok: false, reason: "empty" });
+    expect(precheckUpload({ name: "x.pdf", size: MAX_BYTES + 1 })).toEqual({ ok: false, reason: "too_large" });
+    expect(precheckUpload({ name: "x.pdf", size: Number.NaN })).toEqual({ ok: false, reason: "empty" });
+    expect(precheckUpload({ name: "noext", size: 5 })).toEqual({ ok: false, reason: "bad_type" });
+  });
+});
+
+describe("isOwnEvidencePath", () => {
+  const u = "11111111-1111-4111-8111-111111111111";
+  const e = "22222222-2222-4222-8222-222222222222";
+  const o = "33333333-3333-4333-8333-333333333333";
+  it("accepts exactly uid/experience/uuid.ext for this user and experience", () => {
+    for (const ext of ["pdf", "pptx", "docx", "png", "jpg"]) expect(isOwnEvidencePath(`${u}/${e}/${o}.${ext}`, u, e)).toBe(true);
+  });
+  it("rejects another user's folder, another experience, traversal, odd extensions and extra segments", () => {
+    const other = "44444444-4444-4444-8444-444444444444";
+    expect(isOwnEvidencePath(`${other}/${e}/${o}.pdf`, u, e)).toBe(false);
+    expect(isOwnEvidencePath(`${u}/${other}/${o}.pdf`, u, e)).toBe(false);
+    expect(isOwnEvidencePath(`${u}/${e}/../${o}.pdf`, u, e)).toBe(false);
+    expect(isOwnEvidencePath(`${u}/${e}/${o}.exe`, u, e)).toBe(false);
+    expect(isOwnEvidencePath(`${u}/${e}/${o}.pdf/extra`, u, e)).toBe(false);
+    expect(isOwnEvidencePath(`${u}/${e}/evil.pdf`, u, e)).toBe(false);
+    expect(isOwnEvidencePath(`${u}/${e}/${o}.pdf`, "not-a-uuid", e)).toBe(false);
   });
 });
