@@ -360,3 +360,24 @@ test("unknown pages show a helpful 404, and the privacy notice is public and ana
   await page.waitForLoadState("networkidle");
   expect([...external]).toEqual([]);
 });
+
+test("auth cookies are HttpOnly and SameSite=Lax, and sign-out only accepts same-origin posts", async ({ page, context }) => {
+  await signIn(page, `cookie${Date.now()}`);
+  const auth = (await context.cookies()).filter((c) => c.name.startsWith("sb-"));
+  expect(auth.length).toBeGreaterThan(0);
+  for (const c of auth) {
+    expect(c.httpOnly, `${c.name} httpOnly`).toBe(true);
+    expect(c.sameSite, `${c.name} sameSite`).toBe("Lax");
+  }
+  expect(await page.evaluate(() => document.cookie)).not.toMatch(/sb-/); // not readable from page JavaScript
+
+  // A cross-site post cannot sign the user out; the same-origin button still works.
+  const evil = await page.request.post("/auth/signout", { headers: { origin: "https://evil.example" }, maxRedirects: 0 });
+  expect(evil.status()).toBe(403);
+  await page.goto("/app");
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/app");
+  await expect(page).toHaveURL(/\/login/);
+});

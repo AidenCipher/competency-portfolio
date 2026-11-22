@@ -2,6 +2,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { publicEnv } from "@/lib/env";
+import { hardenCookie } from "@/lib/supabase/cookie-options";
 
 /** Per-request client acting as the signed-in user (RLS applies). */
 export async function createClient() {
@@ -12,7 +13,7 @@ export async function createClient() {
       getAll: () => cookieStore.getAll(),
       setAll: (list) => {
         try {
-          list.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+          list.forEach(({ name, value, options }) => cookieStore.set(name, value, hardenCookie(options)));
         } catch {
           // Called from a Server Component: the proxy refreshes the session instead.
         }
