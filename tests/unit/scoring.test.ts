@@ -7,6 +7,7 @@ import {
   evidenceStrength,
   gapToTarget,
   levelFor,
+  nextCapability,
   reflectionFactor,
   scoreCapabilities,
   validationFactor,
@@ -180,5 +181,21 @@ describe("gapToTarget", () => {
   it("is never negative", () => {
     expect(gapToTarget(80, 70)).toBe(0);
     expect(gapToTarget(40, 70)).toBe(30);
+  });
+});
+
+describe("nextCapability", () => {
+  const c = (id: string, score: number, target: number, weight = 1) => ({ id, score, target, weight });
+  it("returns null when every target is met", () => {
+    expect(nextCapability([c("a", 80, 70), c("b", 90, 90)])).toBeNull();
+    expect(nextCapability([])).toBeNull();
+  });
+  it("picks the largest weighted gap", () => {
+    expect(nextCapability([c("a", 50, 90), c("b", 10, 40), c("c", 70, 75)])?.id).toBe("a");
+    expect(nextCapability([c("a", 50, 90, 1), c("b", 60, 90, 2)])?.id).toBe("b");
+  });
+  it("breaks ties on raw gap, then id", () => {
+    expect(nextCapability([c("a", 50, 90, 1), c("b", 70, 90, 2)])?.id).toBe("a"); // 40 vs 40 weighted; larger raw gap wins
+    expect(nextCapability([c("b", 0, 50), c("a", 0, 50)])?.id).toBe("a");
   });
 });

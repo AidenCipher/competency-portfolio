@@ -159,3 +159,29 @@ export function gapToTarget(score: number, target: number): number {
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
 }
+
+export interface RankableCapability {
+  id: string;
+  score: number;
+  target: number;
+  weight: number;
+}
+
+/**
+ * "Next capability to build": largest weighted gap, (target - score) * weight, among capabilities
+ * still below target. Ties break on the larger raw gap, then on id for determinism.
+ * Returns null when every target is met.
+ */
+export function nextCapability<T extends RankableCapability>(caps: readonly T[]): T | null {
+  const open = caps.filter((c) => c.score < c.target);
+  if (open.length === 0) return null;
+  return [...open].sort((a, b) => {
+    const wa = (a.target - a.score) * a.weight;
+    const wb = (b.target - b.score) * b.weight;
+    if (wb !== wa) return wb - wa;
+    const ga = a.target - a.score;
+    const gb = b.target - b.score;
+    if (gb !== ga) return gb - ga;
+    return a.id < b.id ? -1 : 1;
+  })[0];
+}
